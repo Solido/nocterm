@@ -40,6 +40,8 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
   Stream<void> get _eventLoopStream => _eventLoopController.stream;
   StreamSubscription? _inputSubscription;
   StreamSubscription? _sigwinchSubscription;
+  StreamSubscription? _sigintSubscription;
+  StreamSubscription? _sigtermSubscription;
   Size? _lastKnownSize;
 
   void _initializePipelineOwner() {
@@ -81,6 +83,9 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
 
     // Start listening for terminal resize events
     _startResizeHandling();
+    
+    // Start listening for termination signals
+    _startSignalHandling();
   }
 
   void _startInputHandling() {
@@ -150,6 +155,27 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
         _checkForSizeChange();
       }
     });
+  }
+
+  void _startSignalHandling() {
+    // Listen for termination signals to ensure cleanup runs
+    if (Platform.isLinux || Platform.isMacOS) {
+      // Handle SIGINT (Ctrl+C)
+      _sigintSubscription = ProcessSignal.sigint.watch().listen((_) {
+        // Perform cleanup before exit
+        shutdown();
+        // Exit the process
+        exit(0);
+      });
+      
+      // Handle SIGTERM (kill command)
+      _sigtermSubscription = ProcessSignal.sigterm.watch().listen((_) {
+        // Perform cleanup before exit
+        shutdown();
+        // Exit the process
+        exit(0);
+      });
+    }
   }
 
   void _handleTerminalResize() {
@@ -323,10 +349,15 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
 
   /// Shutdown the terminal and cleanup
   void shutdown() {
+    // Prevent multiple shutdowns
+    if (_shouldExit) return;
+    
     _shouldExit = true;
     _frameTimer?.cancel();
     _inputSubscription?.cancel();
     _sigwinchSubscription?.cancel();
+    _sigintSubscription?.cancel();
+    _sigtermSubscription?.cancel();
     _inputController.close();
     _keyboardEventController.close();
     _mouseEventController.close();
@@ -340,11 +371,39 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
     // Stop hot reload if it was initialized
     shutdownWithHotReload();
 
-    // Disable mouse tracking
-    stdout.write('\x1B[?1000l'); // Disable basic mouse tracking
-    stdout.write('\x1B[?1002l'); // Disable button event tracking
-    stdout.write('\x1B[?1003l'); // Disable all motion tracking
-    stdout.write('\x1B[?1006l'); // Disable SGR mouse mode
+    // Try to cleanup terminal, but handle errors gracefully
+    try {
+      // IMPORTANT: Disable mouse tracking BEFORE leaving alternate screen
+      // This ensures the terminal properly processes the disable commands
+      stdout.write('\x1B[?1003l'); // Disable all motion tracking FIRST
+      stdout.write('\x1B[?1006l'); // Disable SGR mouse mode
+      stdout.write('\x1B[?1002l'); // Disable button event tracking
+      stdout.write('\x1B[?1000l'); // Disable basic mouse tracking LAST
+      
+      // Flush to ensure mouse disable commands are sent immediately
+      stdout.flush();
+
+      // Restore terminal (this includes leaving alternate screen)
+      terminal.showCursor();
+      terminal.leaveAlternateScreen();
+      
+      // CRITICAL: Disable mouse tracking again after leaving alternate screen
+      // Some terminals restore previous state when switching buffers
+      stdout.write('\x1B[?1003l'); // Disable all motion tracking
+      stdout.write('\x1B[?1006l'); // Disable SGR mouse mode
+      stdout.write('\x1B[?1002l'); // Disable button event tracking
+      stdout.write('\x1B[?1000l'); // Disable basic mouse tracking
+      stdout.flush();
+      
+      terminal.clear();
+      
+      // Final flush to ensure all cleanup is complete
+      terminal.flush();
+    } catch (e) {
+      // If stdout is already closed or bound, we can't write to it
+      // This can happen during signal-based shutdown
+      // The important thing is we tried to cleanup
+    }
 
     // Restore stdin if we have a terminal
     try {
@@ -355,11 +414,6 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
     } catch (e) {
       // Ignore errors when running without a proper terminal
     }
-
-    // Restore terminal
-    terminal.showCursor();
-    terminal.leaveAlternateScreen();
-    terminal.clear();
   }
 
   @override
