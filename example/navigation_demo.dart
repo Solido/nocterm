@@ -9,7 +9,7 @@ class NavigationDemo extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return TuiNavigator(
+    return Navigator(
       home: const HomePage(),
       routes: {
         '/': (context) => const HomePage(),
@@ -62,7 +62,7 @@ class HomePage extends StatelessComponent {
             ],
             onSelect: (value) async {
               if (value == 'dialog') {
-                final result = await TuiNavigator.of(context).showDialog<bool>(
+                final result = await Navigator.of(context).showDialog<bool>(
                   builder: (context) => const ConfirmDialog(
                     message: 'This is a modal dialog!',
                   ),
@@ -71,12 +71,12 @@ class HomePage extends StatelessComponent {
                 );
                 print('Dialog result: $result');
               } else if (value == 'input') {
-                final result = await TuiNavigator.of(context).pushComponent<String>(
+                final result = await Navigator.of(context).pushComponent<String>(
                   const InputPage(),
                 );
                 print('Input result: $result');
               } else {
-                TuiNavigator.of(context).pushNamed(value);
+                Navigator.of(context).pushNamed(value);
               }
             },
           ),
@@ -115,9 +115,9 @@ class SettingsPage extends StatelessComponent {
             ],
             onSelect: (value) {
               if (value == 'back') {
-                TuiNavigator.of(context).pop();
+                Navigator.of(context).pop();
               } else {
-                TuiNavigator.of(context).pushNamed(value);
+                Navigator.of(context).pushNamed(value);
               }
             },
           ),
@@ -251,7 +251,7 @@ class _InputPageState extends State<InputPage> {
           TextField(
             onChanged: (value) => setState(() => _input = value),
             onSubmitted: (value) {
-              TuiNavigator.of(context).pop(value);
+              Navigator.of(context).pop(value);
             },
           ),
           const SizedBox(height: 2),
@@ -289,7 +289,7 @@ class ConfirmDialog extends StatelessComponent {
               MenuItem('No', false),
             ],
             onSelect: (value) {
-              TuiNavigator.of(context).pop(value);
+              Navigator.of(context).pop(value);
             },
           ),
         ],

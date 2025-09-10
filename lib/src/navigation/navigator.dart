@@ -13,7 +13,7 @@ import 'pop_behavior.dart';
 import 'navigator_observer.dart';
 
 /// A widget that manages a stack of routes
-class TuiNavigator extends StatefulComponent {
+class Navigator extends StatefulComponent {
   /// The initial home route
   final Component? home;
 
@@ -35,7 +35,7 @@ class TuiNavigator extends StatefulComponent {
   /// Observers for navigation events
   final List<NavigatorObserver> observers;
 
-  const TuiNavigator({
+  const Navigator({
     super.key,
     this.home,
     this.routes,
@@ -48,7 +48,7 @@ class TuiNavigator extends StatefulComponent {
             'Either home, routes, or onGenerateRoute must be provided');
 
   @override
-  State<TuiNavigator> createState() => NavigatorState();
+  State<Navigator> createState() => NavigatorState();
 
   /// Get the navigator state from the context
   static NavigatorState? maybeOf(BuildContext context) {
@@ -65,7 +65,7 @@ class TuiNavigator extends StatefulComponent {
 }
 
 /// State for the TuiNavigator
-class NavigatorState extends State<TuiNavigator> {
+class NavigatorState extends State<Navigator> {
   final List<_RouteEntry> _routeStack = [];
   final StreamController<void> _navigationStream = StreamController.broadcast();
   final Map<Route, Completer<dynamic>> _routeCompleters = {};

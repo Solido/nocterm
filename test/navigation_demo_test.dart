@@ -7,12 +7,12 @@ void main() {
       'navigation demo test',
       (tester) async {
         print('\n=== Testing Navigation Demo Focus ===\n');
-        
+
         // Track which component received events
         final List<String> eventLog = [];
-        
+
         // Create a modified navigation demo
-        final navigator = TuiNavigator(
+        final navigator = Navigator(
           home: Container(
             padding: const EdgeInsets.all(2),
             child: Column(
@@ -36,7 +36,7 @@ void main() {
                               eventLog.add('Dialog: $key');
                               print('Dialog received: $key');
                               if (key == LogicalKey.keyX) {
-                                TuiNavigator.of(context).pop();
+                                Navigator.of(context).pop();
                                 return true;
                               }
                               return false;
@@ -67,53 +67,53 @@ void main() {
             escapeEnabled: true,
           ),
         );
-        
+
         await tester.pumpComponent(navigator);
-        
+
         // Clear log
         eventLog.clear();
-        
+
         print('Sending D key to show dialog...');
         await tester.sendKey(LogicalKey.keyD);
         await tester.pump();
-        
+
         // Verify dialog is shown
         expect(tester.terminalState, containsText('Dialog'));
         expect(eventLog, contains('Main: ${LogicalKey.keyD}'));
-        
+
         // Clear log for next test
         eventLog.clear();
-        
+
         print('Sending A key to test focus...');
         await tester.sendKey(LogicalKey.keyA);
         await tester.pump();
-        
+
         // Check which component received the event
         print('Event log after A key: $eventLog');
-        
+
         // The dialog should receive the event, NOT the main page
         expect(eventLog, isNot(contains('Main: ${LogicalKey.keyA}')));
         // But since dialog doesn't handle A, it won't be in the log either
-        
+
         // Send X to close dialog
         print('Sending X key to close dialog...');
         await tester.sendKey(LogicalKey.keyX);
         await tester.pump();
-        
+
         expect(eventLog, contains('Dialog: ${LogicalKey.keyX}'));
-        
+
         // Dialog should be closed
         expect(tester.terminalState, isNot(containsText('Dialog')));
         expect(tester.terminalState, containsText('Main Page'));
-        
+
         // Clear log
         eventLog.clear();
-        
+
         // Now main page should receive events again
         print('Sending A key after dialog closed...');
         await tester.sendKey(LogicalKey.keyA);
         await tester.pump();
-        
+
         expect(eventLog, contains('Main: ${LogicalKey.keyA}'));
       },
       debugPrintAfterPump: false,

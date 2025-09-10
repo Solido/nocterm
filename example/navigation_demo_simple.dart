@@ -9,7 +9,7 @@ class NavigationDemo extends StatelessComponent {
 
   @override
   Component build(BuildContext context) {
-    return TuiNavigator(
+    return Navigator(
       home: const HomePage(),
       routes: {
         '/': (context) => const HomePage(),
@@ -39,7 +39,7 @@ class HomePage extends StatelessComponent {
               MenuItem('About', '/about'),
             ],
             onSelect: (value) async {
-              TuiNavigator.of(context).pushNamed(value);
+              Navigator.of(context).pushNamed(value);
             },
           ),
         ],
@@ -88,7 +88,7 @@ class AboutPage extends StatelessComponent {
               MenuItem('Settings', '/settings'),
             ],
             onSelect: (value) {
-              TuiNavigator.of(context).pop();
+              Navigator.of(context).pop();
             },
           ),
         ],

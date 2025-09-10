@@ -8,11 +8,11 @@ void main() {
         'focus scope test',
         (tester) async {
           print('\n=== Testing Focus Scope ===\n');
-          
+
           // Track which component has focus
           String focusedComponent = 'none';
-          
-          final navigator = TuiNavigator(
+
+          final navigator = Navigator(
             home: Container(
               padding: const EdgeInsets.all(2),
               child: Column(
@@ -34,18 +34,18 @@ void main() {
               ),
             ),
           );
-          
+
           await tester.pumpComponent(navigator);
           final navState = tester.findState<NavigatorState>();
-          
+
           print('Testing focus on main page...');
           await tester.sendKey(LogicalKey.keyA);
           await tester.pump();
           expect(focusedComponent, 'main', reason: 'Main page should receive focus events');
-          
+
           // Reset
           focusedComponent = 'none';
-          
+
           print('\nShowing dialog...');
           navState.showDialog<void>(
             builder: (context) => Container(
@@ -67,28 +67,28 @@ void main() {
             width: 30,
             height: 8,
           );
-          
+
           await tester.pump();
-          
+
           print('\nTesting focus with dialog open...');
-          
+
           // Test that dialog receives focus
           await tester.sendKey(LogicalKey.keyB);
           await tester.pump();
           expect(focusedComponent, 'dialog', reason: 'Dialog should receive focus events');
-          
+
           // Reset
           focusedComponent = 'none';
-          
+
           // Test that main page does NOT receive focus
           await tester.sendKey(LogicalKey.keyA);
           await tester.pump();
           expect(focusedComponent, 'none', reason: 'Main page should NOT receive focus when dialog is open');
-          
+
           print('\nClosing dialog...');
           navState.pop();
           await tester.pump();
-          
+
           // Test that main page receives focus again
           await tester.sendKey(LogicalKey.keyA);
           await tester.pump();
@@ -97,7 +97,7 @@ void main() {
         debugPrintAfterPump: false,
       );
     });
-    
+
     test('FocusScope basic functionality', () async {
       await testNocterm(
         'focus scope basic test',
@@ -109,9 +109,9 @@ void main() {
               child: const Text('Disabled Focus'),
             ),
           );
-          
+
           expect(tester.terminalState, containsText('Disabled Focus'));
-          
+
           // Test with enabled focus
           await tester.pumpComponent(
             const FocusScope(
@@ -119,23 +119,23 @@ void main() {
               child: Text('Enabled Focus'),
             ),
           );
-          
+
           expect(tester.terminalState, containsText('Enabled Focus'));
         },
       );
     });
-    
+
     test('multiple modals disable focus on lower layers', () async {
       await testNocterm(
         'multiple modals focus test',
         (tester) async {
-          final navigator = TuiNavigator(
+          final navigator = Navigator(
             home: const Text('Home'),
           );
-          
+
           await tester.pumpComponent(navigator);
           final navState = tester.findState<NavigatorState>();
-          
+
           // Show first dialog
           navState.showDialog<void>(
             builder: (context) => const Text('Dialog 1'),
@@ -143,7 +143,7 @@ void main() {
             height: 5,
           );
           await tester.pump();
-          
+
           // Show second dialog on top
           navState.showDialog<void>(
             builder: (context) => const Text('Dialog 2'),
@@ -151,14 +151,14 @@ void main() {
             height: 5,
           );
           await tester.pump();
-          
+
           // Both dialogs should be visible but only the top one should have focus
           expect(tester.terminalState, containsText('Dialog 2'));
-          
+
           // Close top dialog
           navState.pop();
           await tester.pump();
-          
+
           // First dialog should be visible
           expect(tester.terminalState, containsText('Dialog 1'));
           expect(tester.terminalState, isNot(containsText('Dialog 2')));
