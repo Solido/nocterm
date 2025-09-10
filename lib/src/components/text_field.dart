@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:nocterm/nocterm.dart';
+import 'package:nocterm/nocterm.dart' hide TextAlign;
 import 'package:nocterm/src/framework/terminal_canvas.dart';
+import '../text/text_layout_engine.dart' show TextAlign;
 
 /// Controls the text being edited.
 class TextEditingController {
@@ -954,13 +955,7 @@ class GestureDetector extends StatelessComponent {
   }
 }
 
-/// Text alignment options
-enum TextAlign {
-  left,
-  right,
-  center,
-  justify,
-}
+// TextAlign is now imported from text_layout_engine.dart
 
 /// Type definitions
 typedef ValueChanged<T> = void Function(T value);

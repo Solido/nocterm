@@ -127,19 +127,36 @@ class RenderFlex extends RenderObject with ContainerRenderObjectMixin<RenderObje
   BoxConstraints _getChildConstraints(BoxConstraints constraints, double? maxMainAxisExtent) {
     // For non-flex children (when maxMainAxisExtent is null), pass infinite constraint along the main axis
     // This matches Flutter's behavior in _constraintsForNonFlexChild
-    return direction == Axis.horizontal
-        ? BoxConstraints(
-            minWidth: 0,
-            maxWidth: maxMainAxisExtent ?? double.infinity, // Pass infinity for non-flex children
-            minHeight: 0,
-            maxHeight: constraints.maxHeight,
-          )
-        : BoxConstraints(
-            minWidth: 0,
-            maxWidth: constraints.maxWidth,
-            minHeight: 0,
-            maxHeight: maxMainAxisExtent ?? double.infinity, // Pass infinity for non-flex children
-          );
+    
+    // When CrossAxisAlignment.stretch is used, children should get tight constraints on the cross axis
+    final bool shouldStretch = crossAxisAlignment == CrossAxisAlignment.stretch;
+    
+    BoxConstraints result;
+    if (direction == Axis.horizontal) {
+      // For Row: width is main axis, height is cross axis
+      result = BoxConstraints(
+        minWidth: 0,
+        maxWidth: maxMainAxisExtent ?? double.infinity, // Pass infinity for non-flex children
+        minHeight: shouldStretch ? constraints.maxHeight : 0,
+        maxHeight: constraints.maxHeight,
+      );
+    } else {
+      // For Column: height is main axis, width is cross axis
+      result = BoxConstraints(
+        minWidth: shouldStretch ? constraints.maxWidth : 0,
+        maxWidth: constraints.maxWidth,
+        minHeight: 0,
+        maxHeight: maxMainAxisExtent ?? double.infinity, // Pass infinity for non-flex children
+      );
+    }
+    
+    // Debug: log constraints for stretch
+    // if (shouldStretch && direction == Axis.vertical) {
+    //   print('Column stretch: incoming=$constraints');
+    //   print('  Child constraints: minW=${result.minWidth}, maxW=${result.maxWidth}, minH=${result.minHeight}, maxH=${result.maxHeight}');
+    // }
+    
+    return result;
   }
 
   @override

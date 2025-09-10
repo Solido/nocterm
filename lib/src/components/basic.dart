@@ -1,7 +1,10 @@
-import 'package:nocterm/nocterm.dart';
+import 'package:nocterm/nocterm.dart' hide TextAlign;
 import 'package:nocterm/src/framework/terminal_canvas.dart';
 
 import 'render_text.dart';
+
+// Re-export text related enums
+export 'render_text.dart' show TextOverflow, TextAlign;
 import 'render_flex.dart';
 
 // Import from stack.dart for alignment and text direction
@@ -31,21 +34,40 @@ class Text extends SingleChildRenderObjectComponent {
     this.data, {
     super.key,
     this.style,
+    this.softWrap = true,
+    this.overflow = TextOverflow.clip,
+    this.textAlign = TextAlign.left,
+    this.maxLines,
   });
 
   final String data;
   final TextStyle? style;
+  final bool softWrap;
+  final TextOverflow overflow;
+  final TextAlign textAlign;
+  final int? maxLines;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return RenderText(text: data, style: style);
+    return RenderText(
+      text: data,
+      style: style,
+      softWrap: softWrap,
+      overflow: overflow,
+      textAlign: textAlign,
+      maxLines: maxLines,
+    );
   }
 
   @override
   void updateRenderObject(BuildContext context, RenderText renderObject) {
     renderObject
       ..text = data
-      ..style = style;
+      ..style = style
+      ..softWrap = softWrap
+      ..overflow = overflow
+      ..textAlign = textAlign
+      ..maxLines = maxLines;
   }
 }
 
