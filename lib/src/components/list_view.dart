@@ -343,7 +343,14 @@ class _ListViewportElement extends RenderObjectElement {
     }
 
     for (final key in keysToRemove) {
-      _children[key]?.unmount();
+      final child = _children[key];
+      if (child != null) {
+        // Properly deactivate and unmount the element
+        if (child.mounted) {
+          child.deactivate();
+          child.unmount();
+        }
+      }
       _children.remove(key);
     }
   }
@@ -458,6 +465,9 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
 
   /// Information about visible children after layout.
   final List<_ChildLayoutInfo> _visibleChildren = [];
+  
+  /// Tracks the average item extent for estimating total scroll extent
+  double? _averageItemExtent;
 
   @override
   void performLayout() {
@@ -503,6 +513,10 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
     // Build visible children
     final component = _element!.component;
     final itemCount = component.itemCount;
+    
+    // Track total extent of measured items for average calculation
+    double totalMeasuredExtent = 0;
+    int measuredCount = 0;
 
     while (currentPosition < scrollOffset + viewportExtent) {
       if (itemCount != null && itemIndex >= itemCount) break;
@@ -541,10 +555,16 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
             );
 
       renderObject!.layout(childConstraints, parentUsesSize: true);
+      
+      // Track item extent for average calculation
+      final childExtent = scrollDirection == Axis.vertical 
+          ? renderObject!.size.height 
+          : renderObject!.size.width;
+      totalMeasuredExtent += childExtent;
+      measuredCount++;
 
       // Store child info if visible
-      if (currentPosition + (scrollDirection == Axis.vertical ? renderObject!.size.height : renderObject!.size.width) >
-          scrollOffset) {
+      if (currentPosition + childExtent > scrollOffset) {
         _visibleChildren.add(_ChildLayoutInfo(
           renderObject: renderObject!,
           offset: currentPosition,
@@ -552,7 +572,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
         ));
       }
 
-      currentPosition += scrollDirection == Axis.vertical ? renderObject!.size.height : renderObject!.size.width;
+      currentPosition += childExtent;
 
       // Add separator if needed
       if (hasSeparators && (itemCount == null || itemIndex < itemCount - 1)) {
@@ -592,11 +612,35 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
 
       itemIndex++;
     }
+    
+    // Update average item extent if we measured any items
+    if (measuredCount > 0) {
+      final newAverage = totalMeasuredExtent / measuredCount;
+      if (_averageItemExtent == null) {
+        _averageItemExtent = newAverage;
+      } else {
+        // Smooth the average to avoid jumps
+        _averageItemExtent = (_averageItemExtent! * 0.7) + (newAverage * 0.3);
+      }
+    }
 
-    // Update scroll metrics
-    final totalExtent = itemExtent != null && itemCount != null
-        ? itemExtent! * itemCount + (hasSeparators ? (itemCount - 1) : 0)
-        : currentPosition; // Approximate for now
+    // Calculate total extent
+    double totalExtent;
+    if (itemExtent != null && itemCount != null) {
+      // Fixed extent - exact calculation
+      totalExtent = itemExtent! * itemCount + (hasSeparators ? (itemCount - 1) : 0);
+    } else if (itemCount != null && _averageItemExtent != null) {
+      // Variable extent with known count - estimate based on average
+      // Use the average of measured items to estimate total extent
+      totalExtent = _averageItemExtent! * itemCount;
+      if (hasSeparators) {
+        // Assume separators are roughly 1 unit tall
+        totalExtent += itemCount - 1;
+      }
+    } else {
+      // Unknown count or no measurements yet - use what we've built
+      totalExtent = currentPosition;
+    }
 
     _controller.updateMetrics(
       minScrollExtent: 0,

@@ -19,6 +19,9 @@ abstract class Element implements BuildContext {
   Element? get parent => _parent;
 
   _ElementLifecycle _lifecycleState = _ElementLifecycle.initial;
+  
+  /// Whether this element is currently mounted in the element tree.
+  bool get mounted => _lifecycleState != _ElementLifecycle.defunct;
 
   dynamic _slot;
   dynamic get slot => _slot;
