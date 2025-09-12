@@ -19,7 +19,7 @@ abstract class Element implements BuildContext {
   Element? get parent => _parent;
 
   _ElementLifecycle _lifecycleState = _ElementLifecycle.initial;
-  
+
   /// Whether this element is currently mounted in the element tree.
   bool get mounted => _lifecycleState != _ElementLifecycle.defunct;
 
@@ -78,7 +78,7 @@ abstract class Element implements BuildContext {
   void attachRenderObject(dynamic newSlot) {}
 
   /// Returns the RenderObject associated with this Element or its descendants.
-  /// 
+  ///
   /// If this Element is a RenderObjectElement, returns its renderObject.
   /// Otherwise, walks down the tree to find the first RenderObjectElement descendant.
   RenderObject? get renderObject {

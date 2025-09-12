@@ -18,37 +18,13 @@ abstract class BuildContext {
   NoctermBinding get binding;
 
   /// Returns the nearest ancestor widget of the given type T.
-  T? findAncestorComponentOfExactType<T extends Component>() {
-    Element? ancestor = parent;
-    while (ancestor != null && ancestor.component.runtimeType != T) {
-      ancestor = ancestor.parent;
-    }
-    return ancestor?.component as T?;
-  }
+  T? findAncestorComponentOfExactType<T extends Component>();
 
   /// Returns the state of the nearest ancestor [StatefulComponent].
-  T? findAncestorStateOfType<T extends State>() {
-    Element? ancestor = parent;
-    while (ancestor != null) {
-      if (ancestor is StatefulElement && ancestor.state is T) {
-        return ancestor.state as T;
-      }
-      ancestor = ancestor.parent;
-    }
-    return null;
-  }
+  T? findAncestorStateOfType<T extends State>();
 
   /// Returns the render object of the nearest ancestor [RenderObjectComponent].
-  T? findAncestorRenderObjectOfType<T extends RenderObject>() {
-    Element? ancestor = parent;
-    while (ancestor != null) {
-      if (ancestor is RenderObjectElement && ancestor.renderObject is T) {
-        return ancestor.renderObject as T;
-      }
-      ancestor = ancestor.parent;
-    }
-    return null;
-  }
+  T? findAncestorRenderObjectOfType<T extends RenderObject>();
 
   /// Obtains the nearest [InheritedComponent] of the given type T and
   /// registers this context to be rebuilt when that component changes.
