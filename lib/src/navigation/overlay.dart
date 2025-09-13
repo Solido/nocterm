@@ -213,7 +213,7 @@ class _OverlayEntryWidgetState extends State<_OverlayEntryWidget> {
   @override
   Component build(BuildContext context) {
     return Container(
-      color: component.entry.opaque ? Colors.red : null,
+      color: Color.defaultColor,  // Always use terminal default background
       child: component.entry.builder(context),
     );
   }

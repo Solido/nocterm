@@ -68,6 +68,8 @@ abstract class Colors {
 /// This is a simplified version of Flutter's Color class for terminal use.
 /// We only use RGB values since terminals don't support true alpha blending.
 class Color {
+  /// The terminal's default color (resets to terminal default)
+  static const Color defaultColor = Color._default();
   /// The red component of this color, 0 to 255.
   final int red;
 
@@ -76,6 +78,9 @@ class Color {
 
   /// The blue component of this color, 0 to 255.
   final int blue;
+
+  /// Whether this is the default terminal color
+  final bool isDefault;
 
   /// Creates a color from an integer value.
   ///
@@ -86,7 +91,15 @@ class Color {
   const Color(int value)
       : red = (value >> 16) & 0xFF,
         green = (value >> 8) & 0xFF,
-        blue = value & 0xFF;
+        blue = value & 0xFF,
+        isDefault = false;
+
+  /// Creates the default terminal color
+  const Color._default()
+      : red = 0,
+        green = 0,
+        blue = 0,
+        isDefault = true;
 
   /// Creates a color from red, green, and blue components.
   ///
@@ -94,13 +107,21 @@ class Color {
   const Color.fromRGB(this.red, this.green, this.blue)
       : assert(red >= 0 && red <= 255),
         assert(green >= 0 && green <= 255),
-        assert(blue >= 0 && blue <= 255);
+        assert(blue >= 0 && blue <= 255),
+        isDefault = false;
 
   /// Converts this color to an ANSI escape code.
   ///
   /// If [background] is true, returns a background color code.
   /// Otherwise returns a foreground color code.
   String toAnsi({bool background = false}) {
+    if (isDefault) {
+      // Reset to default colors
+      if (background) {
+        return '\x1b[49m';  // Reset background to default
+      }
+      return '\x1b[39m';  // Reset foreground to default
+    }
     if (background) {
       return '\x1b[48;2;$red;$green;${blue}m';
     }
@@ -111,14 +132,18 @@ class Color {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other.runtimeType != runtimeType) return false;
-    return other is Color && other.red == red && other.green == green && other.blue == blue;
+    return other is Color &&
+           other.isDefault == isDefault &&
+           other.red == red &&
+           other.green == green &&
+           other.blue == blue;
   }
 
   @override
-  int get hashCode => Object.hash(red, green, blue);
+  int get hashCode => Object.hash(red, green, blue, isDefault);
 
   @override
-  String toString() => 'Color(r: $red, g: $green, b: $blue)';
+  String toString() => isDefault ? 'Color.defaultColor' : 'Color(r: $red, g: $green, b: $blue)';
 }
 
 /// The thickness of the glyphs used to draw the text.
