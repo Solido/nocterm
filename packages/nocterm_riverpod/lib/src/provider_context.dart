@@ -34,28 +34,20 @@ extension ProviderContext on BuildContext {
   /// }
   /// ```
   T watch<T>(ProviderListenable<T> provider) {
-    // We need to use the container directly and manage subscriptions
-    final container = ProviderScope.containerOf(this, listen: true);
-
-    // For watch, we'll use the container directly and let Riverpod handle rebuilds
-    // This is a simplified approach - in production, we'd track subscriptions better
     final element = this as Element;
-
-    // Create a subscription that will rebuild this element
-    final subscription = container.listen<T>(
-      provider,
-      (previous, next) {
-        if (element.mounted) {
-          element.markNeedsBuild();
-        }
-      },
-      fireImmediately: false,
-    );
-
-    // Store subscription for cleanup (simplified - would need proper tracking)
-    // For now, rely on the ProviderContainer's own cleanup
-
-    return container.read(provider);
+    
+    // Register this element as depending on the inherited provider scope
+    // This ensures we get notified when the scope changes
+    dependOnInheritedComponentOfExactType<UncontrolledProviderScope>();
+    
+    // Get the provider scope element
+    final scopeElement = ProviderScope.scopeElementOf(this);
+    
+    // Get or create dependencies for this element
+    final dependencies = scopeElement.getDependencies(element);
+    
+    // Watch the provider through the dependency tracker
+    return dependencies.watch(provider, scopeElement.container);
   }
 
   /// Listen to a provider with a callback.
@@ -79,12 +71,19 @@ extension ProviderContext on BuildContext {
     bool fireImmediately = false,
     void Function(Object error, StackTrace stackTrace)? onError,
   }) {
-    final container = ProviderScope.containerOf(this, listen: false);
-
-    // Create subscription
-    container.listen<T>(
+    final element = this as Element;
+    
+    // Get the provider scope element (don't register as dependent for listen)
+    final scopeElement = ProviderScope.scopeElementOf(this);
+    
+    // Get or create dependencies for this element
+    final dependencies = scopeElement.getDependencies(element);
+    
+    // Listen through the dependency tracker
+    dependencies.listen(
       provider,
       listener,
+      scopeElement.container,
       fireImmediately: fireImmediately,
       onError: onError,
     );
@@ -94,7 +93,9 @@ extension ProviderContext on BuildContext {
   ///
   /// Unlike [listen], this returns a [ProviderSubscription] that can be
   /// manually managed. The subscription is still automatically disposed
-  /// when the component is unmounted.
+  /// when the component is unmounted if you use the dependency system.
+  ///
+  /// For manual management, you should close the subscription in dispose().
   ///
   /// ```dart
   /// late final subscription = context.subscribe(myProvider, (previous, next) {
@@ -110,6 +111,8 @@ extension ProviderContext on BuildContext {
     bool fireImmediately = false,
     void Function(Object error, StackTrace stackTrace)? onError,
   }) {
+    // For subscribe, we return the raw subscription
+    // Users are responsible for cleanup
     final container = ProviderScope.containerOf(this, listen: false);
 
     return container.listen<T>(
