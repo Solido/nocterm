@@ -173,34 +173,68 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
     // Listen for termination signals to ensure cleanup runs
     if (Platform.isLinux || Platform.isMacOS) {
       // Handle SIGINT (Ctrl+C)
-      _sigintSubscription = ProcessSignal.sigint.watch().listen((_) async {
-        // Perform cleanup before exit
-        shutdown();
-        
-        // CRITICAL: Ensure all terminal cleanup commands are sent
-        // Some terminals buffer output, so we need to flush multiple times
-        await stdout.flush();
-        
-        // Give a small delay to ensure the terminal processes the commands
-        // This is especially important for mouse tracking disable sequences
-        await Future.delayed(const Duration(milliseconds: 50));
-        
-        // Exit the process
+      _sigintSubscription = ProcessSignal.sigint.watch().listen((_) {
+        // Perform cleanup synchronously
+        _performImmediateShutdown();
+
+        // Exit immediately without async delays
+        // This ensures single Ctrl+C quits the app
         exit(0);
       });
 
       // Handle SIGTERM (kill command)
-      _sigtermSubscription = ProcessSignal.sigterm.watch().listen((_) async {
-        // Perform cleanup before exit
-        shutdown();
-        
-        // Ensure cleanup completes
-        await stdout.flush();
-        await Future.delayed(const Duration(milliseconds: 50));
-        
-        // Exit the process
+      _sigtermSubscription = ProcessSignal.sigterm.watch().listen((_) {
+        // Perform cleanup synchronously
+        _performImmediateShutdown();
+
+        // Exit immediately
         exit(0);
       });
+    }
+  }
+
+  /// Perform immediate synchronous shutdown for signal handlers
+  void _performImmediateShutdown() {
+    // Prevent multiple shutdowns
+    if (_shouldExit) return;
+    _shouldExit = true;
+
+    // Cancel all timers and subscriptions immediately
+    _frameTimer?.cancel();
+    _inputSubscription?.cancel();
+    _sigwinchSubscription?.cancel();
+    _sigintSubscription?.cancel();
+    _sigtermSubscription?.cancel();
+
+    // Close all controllers
+    try { _inputController.close(); } catch (_) {}
+    try { _keyboardEventController.close(); } catch (_) {}
+    try { _mouseEventController.close(); } catch (_) {}
+    try { _eventLoopController.close(); } catch (_) {}
+
+    // Stop hot reload if it was initialized
+    try { shutdownWithHotReload(); } catch (_) {}
+
+    // Perform terminal cleanup synchronously
+    try {
+      // IMPORTANT: Disable mouse tracking BEFORE leaving alternate screen
+      stdout.write('\x1B[?1003l'); // Disable all motion tracking
+      stdout.write('\x1B[?1006l'); // Disable SGR mouse mode
+      stdout.write('\x1B[?1002l'); // Disable button event tracking
+      stdout.write('\x1B[?1000l'); // Disable basic mouse tracking
+
+      // Restore terminal
+      terminal.showCursor();
+      terminal.leaveAlternateScreen();
+      terminal.clear();
+
+      // Restore stdin
+      if (stdin.hasTerminal) {
+        stdin.echoMode = true;
+        stdin.lineMode = true;
+      }
+    } catch (_) {
+      // Ignore any errors during cleanup
     }
   }
 
@@ -388,11 +422,15 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
     _frameTimer?.cancel();
     _inputSubscription?.cancel();
     _sigwinchSubscription?.cancel();
-    _sigintSubscription?.cancel();
-    _sigtermSubscription?.cancel();
-    _inputController.close();
-    _keyboardEventController.close();
-    _mouseEventController.close();
+
+    // Don't cancel signal subscriptions here - let them stay active
+    // so they can handle additional signals if needed
+    // _sigintSubscription?.cancel();
+    // _sigtermSubscription?.cancel();
+
+    try { _inputController.close(); } catch (_) {}
+    try { _keyboardEventController.close(); } catch (_) {}
+    try { _mouseEventController.close(); } catch (_) {}
 
     // Wake up event loop one last time before closing
     if (!_eventLoopController.isClosed) {
@@ -425,11 +463,11 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
       stdout.write('\x1B[?1006l'); // Disable SGR mouse mode
       stdout.write('\x1B[?1002l'); // Disable button event tracking
       stdout.write('\x1B[?1000l'); // Disable basic mouse tracking
-      
+
       // Send a terminal reset sequence as a final safety measure
       // This helps ensure the terminal is in a clean state
       stdout.write('\x1B[c'); // Reset Device Attributes (soft reset)
-      
+
       stdout.flush();
 
       terminal.clear();
@@ -575,32 +613,56 @@ Future<void> runApp(Component app, {bool enableHotReload = true}) async {
   final logFile = File('log.txt');
   final logSink = logFile.openWrite(mode: FileMode.writeOnly);
 
+  // Store reference to binding for signal handler access
+  TerminalBinding? binding;
+
   try {
     await runZoned(() async {
       final terminal = term.Terminal();
-      final binding = TerminalBinding(terminal);
+      binding = TerminalBinding(terminal);
 
-      binding.initialize();
-      binding.attachRootComponent(app);
+      binding!.initialize();
+      binding!.attachRootComponent(app);
 
       // Initialize hot reload in development mode
       if (enableHotReload && !bool.fromEnvironment('dart.vm.product')) {
-        await binding.initializeHotReload();
+        await binding!.initializeHotReload();
       }
 
-      await binding.runEventLoop();
+      await binding!.runEventLoop();
     },
         zoneSpecification: ZoneSpecification(
           print: (Zone self, ZoneDelegate parent, Zone zone, String message) {
             // Write to log file instead of stdout
-            logSink.writeln('[${DateTime.now().toIso8601String()}] $message');
+            try {
+              logSink.writeln('[${DateTime.now().toIso8601String()}] $message');
+            } catch (_) {
+              // Ignore write errors if log sink is closed
+            }
           },
           handleUncaughtError: (Zone self, ZoneDelegate parent, Zone zone, Object error, StackTrace stackTrace) {
-            logSink.writeln('[${DateTime.now().toIso8601String()}] $error ${stackTrace.toString()}');
+            try {
+              logSink.writeln('[${DateTime.now().toIso8601String()}] $error ${stackTrace.toString()}');
+            } catch (_) {
+              // Ignore write errors if log sink is closed
+            }
           },
         ));
+  } catch (e) {
+    // If we exit via signal handler, this might throw
+    // Just ensure cleanup happens
   } finally {
-    await logSink.flush();
-    await logSink.close();
+    // Ensure binding cleanup if not already done
+    if (binding != null && !binding!._shouldExit) {
+      binding!.shutdown();
+    }
+
+    // Close log file gracefully
+    try {
+      await logSink.flush();
+      await logSink.close();
+    } catch (_) {
+      // Ignore errors if already closed
+    }
   }
 }
