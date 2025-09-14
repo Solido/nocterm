@@ -323,6 +323,8 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
       return false; // Event is "handled" (blocked)
     }
 
+    // TODO: This is a hack to handle RenderTheater specially for Navigator
+    // Should be properly integrated into the render object hierarchy
     if (element.renderObject is RenderTheater) {
       final multiChildRenderObject = element as MultiChildRenderObjectElement;
       if (multiChildRenderObject.children.length > 0) {
@@ -349,6 +351,16 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
 
   /// Dispatch a mouse wheel event to scrollable RenderObjects at a specific position
   bool _dispatchMouseWheelAtPosition(Element element, MouseEvent event, Offset mousePos, Offset currentOffset) {
+    // TODO: This is a hack to handle RenderTheater specially for Navigator
+    // Should be properly integrated into the render object hierarchy
+    if (element.renderObject is RenderTheater) {
+      final multiChildRenderObject = element as MultiChildRenderObjectElement;
+      if (multiChildRenderObject.children.length > 0) {
+        final child = multiChildRenderObject.children.last;
+        return _dispatchMouseWheelAtPosition(child, event, mousePos, currentOffset);
+      }
+    }
+
     // Calculate this element's bounds if it has a render object
     Rect? elementBounds;
     RenderObject? renderObject;

@@ -2,7 +2,7 @@ import 'package:nocterm/nocterm.dart';
 import 'package:nocterm/src/components/error_widget.dart';
 
 void main() async {
-  await runApp(const ScrollDemo());
+  await runApp(const Navigator(home: ScrollDemo()));
 }
 
 class ScrollDemo extends StatefulComponent {
@@ -33,6 +33,11 @@ class _ScrollDemoState extends State<ScrollDemo> {
     return Focusable(
       focused: true,
       onKeyEvent: (event) {
+        if (event.logicalKey == LogicalKey.keyQ) {
+          Navigator.of(context).push(
+              PageRoute(builder: (context) => const ScrollDemo(), settings: const RouteSettings(name: 'scroll_demo')));
+          return true;
+        }
         if (event.logicalKey == LogicalKey.tab) {
           setState(() {
             selectedTab = (selectedTab + 1) % 4;
@@ -183,10 +188,6 @@ class _ScrollDemoState extends State<ScrollDemo> {
   }
 
   Component _buildListViewDemo() {
-    return Center(
-      child: Text('ListView Demo'),
-    );
-    return TUIErrorWidget();
     return Container(
       decoration: BoxDecoration(
         border: BoxBorder.all(color: Colors.magenta),

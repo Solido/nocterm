@@ -70,48 +70,6 @@ class _SingleChildScrollViewState extends State<SingleChildScrollView> {
     super.dispose();
   }
 
-  bool _handleKeyEvent(KeyboardEvent event) {
-    final controller = _effectiveController;
-    final key = event.logicalKey;
-
-    if (component.scrollDirection == Axis.vertical) {
-      if (key == LogicalKey.arrowUp) {
-        controller.scrollUp();
-        return true;
-      } else if (key == LogicalKey.arrowDown) {
-        controller.scrollDown();
-        return true;
-      } else if (key == LogicalKey.pageUp) {
-        controller.pageUp();
-        return true;
-      } else if (key == LogicalKey.pageDown) {
-        controller.pageDown();
-        return true;
-      } else if (key == LogicalKey.home) {
-        controller.scrollToStart();
-        return true;
-      } else if (key == LogicalKey.end) {
-        controller.scrollToEnd();
-        return true;
-      }
-    } else {
-      if (key == LogicalKey.arrowLeft) {
-        controller.scrollUp();
-        return true;
-      } else if (key == LogicalKey.arrowRight) {
-        controller.scrollDown();
-        return true;
-      } else if (key == LogicalKey.home) {
-        controller.scrollToStart();
-        return true;
-      } else if (key == LogicalKey.end) {
-        controller.scrollToEnd();
-        return true;
-      }
-    }
-    return false;
-  }
-
   @override
   Component build(BuildContext context) {
     Component? child = component.child;
@@ -123,14 +81,10 @@ class _SingleChildScrollViewState extends State<SingleChildScrollView> {
       );
     }
 
-    return Focusable(
-      focused: true,
-      onKeyEvent: _handleKeyEvent,
-      child: _SingleChildViewport(
-        scrollDirection: component.scrollDirection,
-        controller: _effectiveController,
-        child: child,
-      ),
+    return _SingleChildViewport(
+      scrollDirection: component.scrollDirection,
+      controller: _effectiveController,
+      child: child,
     );
   }
 }
@@ -163,7 +117,8 @@ class _SingleChildViewport extends SingleChildRenderObjectComponent {
 }
 
 /// Render object for a scrollable single child viewport.
-class RenderSingleChildViewport extends RenderObject with RenderObjectWithChildMixin<RenderObject>, ScrollableRenderObjectMixin {
+class RenderSingleChildViewport extends RenderObject
+    with RenderObjectWithChildMixin<RenderObject>, ScrollableRenderObjectMixin {
   RenderSingleChildViewport({
     required Axis scrollDirection,
     required ScrollController controller,
@@ -195,7 +150,7 @@ class RenderSingleChildViewport extends RenderObject with RenderObjectWithChildM
   void _handleScrollUpdate() {
     markNeedsPaint();
   }
-  
+
   @override
   bool handleMouseWheel(MouseEvent event) {
     // Only handle vertical scroll for vertical ScrollViews
@@ -219,7 +174,7 @@ class RenderSingleChildViewport extends RenderObject with RenderObjectWithChildM
         return true;
       }
     }
-    
+
     return false;
   }
 
