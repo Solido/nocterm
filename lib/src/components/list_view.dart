@@ -71,13 +71,13 @@ class ListView extends StatefulComponent {
   /// If non-null, forces the children to have the given extent in the scroll
   /// direction.
   final double? itemExtent;
-  
+
   /// Whether to use lazy building of children.
-  /// 
+  ///
   /// When false (the default), all children are built during layout to determine
   /// the exact scroll extent, but only visible children are painted.
   /// This provides accurate scroll metrics at the cost of building all children.
-  /// 
+  ///
   /// When true, only visible children are built, which is more efficient for
   /// large lists but may result in estimated scroll extents.
   final bool lazy;
@@ -128,63 +128,17 @@ class _ListViewState extends State<ListView> {
     super.dispose();
   }
 
-  bool _handleKeyEvent(KeyboardEvent event) {
-    final controller = _effectiveController;
-    final key = event.logicalKey;
-
-    if (component.scrollDirection == Axis.vertical) {
-      if (key == LogicalKey.arrowUp) {
-        controller.scrollUp();
-        return true;
-      } else if (key == LogicalKey.arrowDown) {
-        controller.scrollDown();
-        return true;
-      } else if (key == LogicalKey.pageUp) {
-        controller.pageUp();
-        return true;
-      } else if (key == LogicalKey.pageDown) {
-        controller.pageDown();
-        return true;
-      } else if (key == LogicalKey.home) {
-        controller.scrollToStart();
-        return true;
-      } else if (key == LogicalKey.end) {
-        controller.scrollToEnd();
-        return true;
-      }
-    } else {
-      if (key == LogicalKey.arrowLeft) {
-        controller.scrollUp();
-        return true;
-      } else if (key == LogicalKey.arrowRight) {
-        controller.scrollDown();
-        return true;
-      } else if (key == LogicalKey.home) {
-        controller.scrollToStart();
-        return true;
-      } else if (key == LogicalKey.end) {
-        controller.scrollToEnd();
-        return true;
-      }
-    }
-    return false;
-  }
-
   @override
   Component build(BuildContext context) {
-    return Focusable(
-      focused: true,
-      onKeyEvent: _handleKeyEvent,
-      child: _ListViewport(
-        scrollDirection: component.scrollDirection,
-        controller: _effectiveController,
-        padding: component.padding,
-        itemExtent: component.itemExtent,
-        lazy: component.lazy,
-        itemBuilder: component.itemBuilder,
-        separatorBuilder: component.separatorBuilder,
-        itemCount: component.itemCount,
-      ),
+    return _ListViewport(
+      scrollDirection: component.scrollDirection,
+      controller: _effectiveController,
+      padding: component.padding,
+      itemExtent: component.itemExtent,
+      lazy: component.lazy,
+      itemBuilder: component.itemBuilder,
+      separatorBuilder: component.separatorBuilder,
+      itemCount: component.itemCount,
     );
   }
 }
@@ -436,7 +390,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
       markNeedsLayout();
     }
   }
-  
+
   bool _lazy;
   bool get lazy => _lazy;
   set lazy(bool value) {
@@ -458,7 +412,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
   void _handleScrollUpdate() {
     markNeedsPaint();
   }
-  
+
   @override
   bool handleMouseWheel(MouseEvent event) {
     // Only handle vertical scroll for vertical ScrollViews
@@ -482,7 +436,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -494,10 +448,10 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
 
   /// Information about visible children after layout.
   final List<_ChildLayoutInfo> _visibleChildren = [];
-  
+
   /// All built children when not lazy (for accurate extent calculation).
   final List<_ChildLayoutInfo> _allChildren = [];
-  
+
   /// Tracks the average item extent for estimating total scroll extent
   double? _averageItemExtent;
 
@@ -522,17 +476,13 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
     ));
 
     // Calculate viewport dimensions
-    final viewportExtent = scrollDirection == Axis.vertical 
-        ? innerConstraints.maxHeight 
-        : innerConstraints.maxWidth;
-    final crossAxisExtent = scrollDirection == Axis.vertical 
-        ? innerConstraints.maxWidth 
-        : innerConstraints.maxHeight;
+    final viewportExtent = scrollDirection == Axis.vertical ? innerConstraints.maxHeight : innerConstraints.maxWidth;
+    final crossAxisExtent = scrollDirection == Axis.vertical ? innerConstraints.maxWidth : innerConstraints.maxHeight;
 
     // Build visible children
     final component = _element!.component;
     final itemCount = component.itemCount;
-    
+
     // Child constraints
     final childConstraints = scrollDirection == Axis.vertical
         ? BoxConstraints(
@@ -549,7 +499,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
           );
 
     double totalExtent = 0;
-    
+
     if (_lazy) {
       // Lazy mode: only build visible children
       totalExtent = _performLazyLayout(
@@ -582,7 +532,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
       );
     }
   }
-  
+
   /// Performs lazy layout - only builds visible children
   double _performLazyLayout({
     required double viewportExtent,
@@ -603,7 +553,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
       itemIndex = 0;
       currentPosition = 0;
     }
-    
+
     // Track total extent of measured items for average calculation
     double totalMeasuredExtent = 0;
     int measuredCount = 0;
@@ -621,11 +571,9 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
 
       // Layout child
       renderObject.layout(childConstraints, parentUsesSize: true);
-      
+
       // Track item extent for average calculation
-      final childExtent = scrollDirection == Axis.vertical 
-          ? renderObject.size.height 
-          : renderObject.size.width;
+      final childExtent = scrollDirection == Axis.vertical ? renderObject.size.height : renderObject.size.width;
       totalMeasuredExtent += childExtent;
       measuredCount++;
 
@@ -647,10 +595,9 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
           final separatorRenderObject = _getRenderObject(separator);
           if (separatorRenderObject != null) {
             separatorRenderObject.layout(childConstraints, parentUsesSize: true);
-            final separatorExtent = scrollDirection == Axis.vertical
-                ? separatorRenderObject.size.height
-                : separatorRenderObject.size.width;
-                
+            final separatorExtent =
+                scrollDirection == Axis.vertical ? separatorRenderObject.size.height : separatorRenderObject.size.width;
+
             if (currentPosition + separatorExtent > scrollOffset) {
               _visibleChildren.add(_ChildLayoutInfo(
                 renderObject: separatorRenderObject,
@@ -665,7 +612,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
 
       itemIndex++;
     }
-    
+
     // Update average item extent if we measured any items
     if (measuredCount > 0) {
       final newAverage = totalMeasuredExtent / measuredCount;
@@ -693,7 +640,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
       return currentPosition;
     }
   }
-  
+
   /// Performs eager layout - builds all children for accurate extent
   double _performEagerLayout({
     required double viewportExtent,
@@ -702,11 +649,11 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
   }) {
     final scrollOffset = _controller.offset;
     double currentPosition = 0;
-    
+
     // Build all children to get accurate total extent
     int itemIndex = 0;
     final maxItems = itemCount ?? 1000; // Reasonable limit for non-lazy mode
-    
+
     while (itemIndex < maxItems) {
       // Build item
       final child = _element!.buildChild(itemIndex);
@@ -718,10 +665,8 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
 
       // Layout child
       renderObject.layout(childConstraints, parentUsesSize: true);
-      
-      final childExtent = scrollDirection == Axis.vertical 
-          ? renderObject.size.height 
-          : renderObject.size.width;
+
+      final childExtent = scrollDirection == Axis.vertical ? renderObject.size.height : renderObject.size.width;
 
       // Store all children info
       _allChildren.add(_ChildLayoutInfo(
@@ -729,10 +674,9 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
         offset: currentPosition,
         index: itemIndex,
       ));
-      
+
       // Check if visible
-      if (currentPosition < scrollOffset + viewportExtent && 
-          currentPosition + childExtent > scrollOffset) {
+      if (currentPosition < scrollOffset + viewportExtent && currentPosition + childExtent > scrollOffset) {
         _visibleChildren.add(_ChildLayoutInfo(
           renderObject: renderObject,
           offset: currentPosition,
@@ -749,25 +693,23 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
           final separatorRenderObject = _getRenderObject(separator);
           if (separatorRenderObject != null) {
             separatorRenderObject.layout(childConstraints, parentUsesSize: true);
-            final separatorExtent = scrollDirection == Axis.vertical
-                ? separatorRenderObject.size.height
-                : separatorRenderObject.size.width;
-                
+            final separatorExtent =
+                scrollDirection == Axis.vertical ? separatorRenderObject.size.height : separatorRenderObject.size.width;
+
             _allChildren.add(_ChildLayoutInfo(
               renderObject: separatorRenderObject,
               offset: currentPosition,
               index: -itemIndex - 1,
             ));
-            
-            if (currentPosition < scrollOffset + viewportExtent && 
-                currentPosition + separatorExtent > scrollOffset) {
+
+            if (currentPosition < scrollOffset + viewportExtent && currentPosition + separatorExtent > scrollOffset) {
               _visibleChildren.add(_ChildLayoutInfo(
                 renderObject: separatorRenderObject,
                 offset: currentPosition,
                 index: -itemIndex - 1,
               ));
             }
-            
+
             currentPosition += separatorExtent;
           }
         }
@@ -775,10 +717,10 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
 
       itemIndex++;
     }
-    
+
     return currentPosition; // Exact total extent
   }
-  
+
   /// Helper to get render object from element
   RenderObject? _getRenderObject(Element element) {
     RenderObject? renderObject;
@@ -789,6 +731,7 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
         el.visitChildren(findRenderObject);
       }
     }
+
     findRenderObject(element);
     return renderObject;
   }
