@@ -131,6 +131,17 @@ class BoxConstraints {
   bool get hasInfiniteWidth => minWidth >= double.infinity;
   bool get hasInfiniteHeight => minHeight >= double.infinity;
 
+  /// Returns new box constraints that respect the given constraints while being
+  /// as close as possible to the original constraints.
+  BoxConstraints enforce(BoxConstraints constraints) {
+    return BoxConstraints(
+      minWidth: minWidth.clamp(constraints.minWidth, constraints.maxWidth),
+      maxWidth: maxWidth.clamp(constraints.minWidth, constraints.maxWidth),
+      minHeight: minHeight.clamp(constraints.minHeight, constraints.maxHeight),
+      maxHeight: maxHeight.clamp(constraints.minHeight, constraints.maxHeight),
+    );
+  }
+
   @override
   String toString() {
     return 'BoxConstraints($minWidth..$maxWidth x $minHeight..$maxHeight)';

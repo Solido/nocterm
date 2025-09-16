@@ -303,21 +303,31 @@ class LimitedBox extends StatelessComponent {
 
 // DecoratedBox is now fully implemented in decorated_box.dart
 
-class ConstrainedBox extends StatelessComponent {
+/// A widget that imposes additional constraints on its child.
+///
+/// This widget gives its child a set of constraints to adhere to, in addition
+/// to the constraints it receives from its parent. The constraints are applied
+/// using the [BoxConstraints.enforce] method, which ensures the final constraints
+/// respect both the additional constraints and the parent's constraints.
+class ConstrainedBox extends SingleChildRenderObjectComponent {
+  /// Creates a widget that imposes additional constraints on its child.
   const ConstrainedBox({
     super.key,
     required this.constraints,
-    this.child,
+    super.child,
   });
 
+  /// The additional constraints to impose on the child.
   final BoxConstraints constraints;
-  final Component? child;
 
   @override
-  Component build(BuildContext context) {
-    // For now, just pass through the child
-    // In a full implementation, this would apply constraints
-    return child ?? const SizedBox();
+  RenderConstrainedBox createRenderObject(BuildContext context) {
+    return RenderConstrainedBox(additionalConstraints: constraints);
+  }
+
+  @override
+  void updateRenderObject(BuildContext context, RenderConstrainedBox renderObject) {
+    renderObject.additionalConstraints = constraints;
   }
 }
 
@@ -372,11 +382,20 @@ class FlexParentData extends BoxParentData {
   String toString() => '${super.toString()}; flex=$flex; fit=$fit';
 }
 
-// Placeholder render objects - we'll implement these next
+/// RenderObject that constrains its child using additional constraints.
 class RenderConstrainedBox extends RenderObject with RenderObjectWithChildMixin<RenderObject> {
-  RenderConstrainedBox({required this.additionalConstraints});
+  RenderConstrainedBox({required BoxConstraints additionalConstraints})
+      : _additionalConstraints = additionalConstraints;
 
-  BoxConstraints additionalConstraints;
+  BoxConstraints get additionalConstraints => _additionalConstraints;
+  BoxConstraints _additionalConstraints;
+  set additionalConstraints(BoxConstraints value) {
+    if (_additionalConstraints == value) {
+      return;
+    }
+    _additionalConstraints = value;
+    markNeedsLayout();
+  }
 
   @override
   void setupParentData(RenderObject child) {
@@ -385,31 +404,21 @@ class RenderConstrainedBox extends RenderObject with RenderObjectWithChildMixin<
     }
   }
 
-  BoxConstraints _combine(BoxConstraints a, BoxConstraints b) {
-    return BoxConstraints(
-      minWidth: a.minWidth.clamp(b.minWidth, b.maxWidth),
-      maxWidth: a.maxWidth.clamp(b.minWidth, b.maxWidth),
-      minHeight: a.minHeight.clamp(b.minHeight, b.maxHeight),
-      maxHeight: a.maxHeight.clamp(b.minHeight, b.maxHeight),
-    );
-  }
-
   @override
   void performLayout() {
     if (child != null) {
-      // Combine the incoming constraints with additional constraints
-      final combinedConstraints = _combine(additionalConstraints, constraints);
-      child!.layout(combinedConstraints, parentUsesSize: true);
+      // Apply additional constraints using enforce method
+      child!.layout(_additionalConstraints.enforce(constraints), parentUsesSize: true);
 
       // Position child at origin
       final BoxParentData childParentData = child!.parentData as BoxParentData;
       childParentData.offset = Offset.zero;
 
-      // Set our size to child's size
-      size = constraints.constrain(child!.size);
+      // Our size is the child's size
+      size = child!.size;
     } else {
-      // If no child, try to be as small as possible while respecting additional constraints
-      size = _combine(additionalConstraints, constraints).constrain(Size.zero);
+      // If no child, constrain to smallest size allowed by enforced constraints
+      size = _additionalConstraints.enforce(constraints).constrain(Size.zero);
     }
   }
 
