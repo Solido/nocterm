@@ -207,6 +207,72 @@ class NavigatorState extends State<Navigator> {
     return push(route as Route<T>);
   }
 
+  /// Push a route and replace the current top route
+  Future<T?> pushReplacement<T, TO>(Route<T> newRoute, {TO? result}) {
+    if (_routes.isEmpty) {
+      return push(newRoute);
+    }
+
+    final oldRoute = _routes.last;
+
+    // Install the new route
+    _installRoute(newRoute);
+
+    // Remove the old route from the stack (but keep it for disposal later)
+    _routes.removeAt(_routes.length - 2);
+
+    // Update overlay entries - remove old, add new
+    if (_overlay != null) {
+      // Remove old route's overlay entries
+      for (final entry in oldRoute.overlayEntries) {
+        entry.remove();
+      }
+      // Add new route's overlay entries
+      _overlay!.insertAll(newRoute.overlayEntries);
+    }
+
+    // Notify observers
+    for (final observer in component.observers) {
+      observer.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    }
+
+    // Complete the old route's future if it exists
+    if (_routeCompleters.containsKey(oldRoute)) {
+      final completer = _routeCompleters[oldRoute]!;
+      _routeCompleters.remove(oldRoute);
+      Future.microtask(() => completer.complete(result));
+    }
+
+    // Dispose the old route
+    oldRoute.dispose();
+
+    // Create completer for new route
+    final completer = Completer<T?>();
+    _routeCompleters[newRoute] = completer;
+    return completer.future;
+  }
+
+  /// Push a named route and replace the current top route
+  Future<T?> pushReplacementNamed<T, TO>(String name, {Object? arguments, TO? result}) {
+    final settings = RouteSettings(name: name, arguments: arguments);
+    final route = _createRoute(settings);
+
+    if (route == null) {
+      throw FlutterError('Could not find a route named "$name"');
+    }
+
+    return pushReplacement<T, TO>(route as Route<T>, result: result);
+  }
+
+  /// Push a component and replace the current top route
+  Future<T?> pushReplacementComponent<T, TO>(Component component, {String? name, TO? result}) {
+    final route = PageRoute<T>(
+      builder: (context) => component,
+      settings: RouteSettings(name: name),
+    );
+    return pushReplacement<T, TO>(route, result: result);
+  }
+
   /// Pop the current route off the navigation stack.
   void pop<T>([T? result]) {
     if (!canPop()) return;
@@ -215,12 +281,12 @@ class NavigatorState extends State<Navigator> {
 
     // Remove the route
     _routes.removeLast();
-    
+
     // Remove overlay entries
     for (final entry in route.overlayEntries) {
       entry.remove();
     }
-    
+
     // Dispose the route
     route.dispose();
 
