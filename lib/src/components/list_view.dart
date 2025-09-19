@@ -451,20 +451,38 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
     // and horizontal scroll for horizontal ScrollViews
     if (_scrollDirection == Axis.vertical) {
       if (event.button == MouseButton.wheelUp) {
-        _controller.scrollUp(3.0); // Scroll 3 lines
+        // In reverse mode, invert the scroll direction
+        if (_reverse) {
+          _controller.scrollDown(3.0); // Wheel up scrolls down in reverse mode
+        } else {
+          _controller.scrollUp(3.0); // Normal behavior
+        }
         return true;
       } else if (event.button == MouseButton.wheelDown) {
-        _controller.scrollDown(3.0); // Scroll 3 lines
+        // In reverse mode, invert the scroll direction
+        if (_reverse) {
+          _controller.scrollUp(3.0); // Wheel down scrolls up in reverse mode
+        } else {
+          _controller.scrollDown(3.0); // Normal behavior
+        }
         return true;
       }
     } else {
       // For horizontal scroll, we might want to handle horizontal wheel events
       // but for now just handle vertical wheel as horizontal scroll
       if (event.button == MouseButton.wheelUp) {
-        _controller.scrollUp(3.0);
+        if (_reverse) {
+          _controller.scrollDown(3.0);
+        } else {
+          _controller.scrollUp(3.0);
+        }
         return true;
       } else if (event.button == MouseButton.wheelDown) {
-        _controller.scrollDown(3.0);
+        if (_reverse) {
+          _controller.scrollUp(3.0);
+        } else {
+          _controller.scrollDown(3.0);
+        }
         return true;
       }
     }
@@ -548,18 +566,15 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
       );
     }
 
-    // Update scroll metrics
+    // Update scroll metrics with axis direction
     final maxExtent = math.max(0.0, totalExtent - viewportExtent);
+    final axisDirection = axisToAxisDirection(scrollDirection, reverse: _reverse);
     _controller.updateMetrics(
       minScrollExtent: 0,
       maxScrollExtent: maxExtent,
       viewportDimension: viewportExtent,
+      axisDirection: axisDirection,
     );
-
-    // If reverse and not yet positioned, start at the end
-    if (_reverse && _controller.offset == 0 && maxExtent > 0) {
-      _controller.jumpTo(maxExtent);
-    }
 
     // Clean up invisible children in lazy mode
     if (_lazy && _visibleChildren.isNotEmpty) {

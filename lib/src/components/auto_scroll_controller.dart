@@ -28,6 +28,7 @@ class AutoScrollController extends ScrollController {
     required double minScrollExtent,
     required double maxScrollExtent,
     required double viewportDimension,
+    AxisDirection? axisDirection,
   }) {
     // Check if we should auto-scroll before updating metrics
     final wasNearBottom = _isNearBottom();
@@ -38,6 +39,7 @@ class AutoScrollController extends ScrollController {
       minScrollExtent: minScrollExtent,
       maxScrollExtent: maxScrollExtent,
       viewportDimension: viewportDimension,
+      axisDirection: axisDirection,
     );
 
     // Auto-scroll if we were near bottom and content grew
@@ -45,11 +47,19 @@ class AutoScrollController extends ScrollController {
       // Schedule scroll to end after the frame
       try {
         TerminalBinding.instance.addPostFrameCallback(() {
-          scrollToEnd();
+          if (isReversed) {
+            scrollToStart(); // In reverse mode, scroll to start (offset 0)
+          } else {
+            scrollToEnd(); // In normal mode, scroll to end
+          }
         });
       } catch (e) {
         // In test environment or when binding is not available, scroll immediately
-        scrollToEnd();
+        if (isReversed) {
+          scrollToStart();
+        } else {
+          scrollToEnd();
+        }
       }
     }
 
@@ -59,7 +69,14 @@ class AutoScrollController extends ScrollController {
   /// Check if the scroll position is near the bottom.
   bool _isNearBottom() {
     if (maxScrollExtent == 0) return true; // No scrolling needed
-    return offset >= maxScrollExtent - autoScrollThreshold;
+
+    if (isReversed) {
+      // In reverse mode, "bottom" is at offset 0
+      return offset <= autoScrollThreshold;
+    } else {
+      // In normal mode, "bottom" is at maxScrollExtent
+      return offset >= maxScrollExtent - autoScrollThreshold;
+    }
   }
 
   /// Update auto-scroll state based on current position.
@@ -87,7 +104,11 @@ class AutoScrollController extends ScrollController {
   /// Manually enable auto-scroll and scroll to bottom.
   void enableAutoScroll() {
     _isAutoScrollEnabled = true;
-    scrollToEnd();
+    if (isReversed) {
+      scrollToStart(); // In reverse mode, "bottom" is at start
+    } else {
+      scrollToEnd(); // In normal mode, "bottom" is at end
+    }
     notifyListeners();
   }
 

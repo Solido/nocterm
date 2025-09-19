@@ -6,7 +6,8 @@ import 'package:nocterm/src/framework/terminal_canvas.dart';
 /// A scrollbar that can be optionally shown for scrollable widgets.
 ///
 /// Typically used by wrapping a scrollable widget like [SingleChildScrollView]
-/// or [ListView].
+/// or [ListView]. The scrollbar automatically detects whether the scrollable
+/// is reversed from the controller's axis direction.
 class Scrollbar extends StatefulComponent {
   const Scrollbar({
     super.key,
@@ -125,6 +126,9 @@ class RenderScrollbar extends RenderObject with RenderObjectWithChildMixin<Rende
     }
   }
 
+  /// Gets whether the scrollbar is reversed from the controller's axis direction.
+  bool get _isReversed => _controller?.isReversed ?? false;
+
   bool _thumbVisibility;
   bool get thumbVisibility => _thumbVisibility;
   set thumbVisibility(bool value) {
@@ -204,8 +208,19 @@ class RenderScrollbar extends RenderObject with RenderObjectWithChildMixin<Rende
     final scrollFraction = controller.viewportDimension / (controller.maxScrollExtent + controller.viewportDimension);
     final thumbHeight = math.max(1.0, scrollbarHeight * scrollFraction);
 
-    final scrollOffset = controller.offset / controller.maxScrollExtent;
-    final thumbOffset = scrollOffset * (scrollbarHeight - thumbHeight);
+    // Calculate thumb position based on scroll offset
+    double thumbOffset;
+    if (_isReversed) {
+      // In reverse mode, invert the thumb position
+      // When at offset 0 (visual bottom), thumb should be at bottom
+      // When at maxScrollExtent (visual top), thumb should be at top
+      final scrollOffset = 1.0 - (controller.offset / controller.maxScrollExtent);
+      thumbOffset = scrollOffset * (scrollbarHeight - thumbHeight);
+    } else {
+      // Normal mode: offset 0 = top, maxScrollExtent = bottom
+      final scrollOffset = controller.offset / controller.maxScrollExtent;
+      thumbOffset = scrollOffset * (scrollbarHeight - thumbHeight);
+    }
 
     // Draw scrollbar track
     for (int y = 0; y < scrollbarHeight.toInt(); y++) {
@@ -216,7 +231,30 @@ class RenderScrollbar extends RenderObject with RenderObjectWithChildMixin<Rende
       );
     }
 
-    // Draw scrollbar thumb
+    // Draw arrows at top and bottom (before thumb so thumb can overwrite if needed)
+    if (scrollbarHeight >= 3) {
+      // In reverse mode, arrows should reflect the inverted scroll direction
+      final topArrowActive = _isReversed ? !controller.atEnd : !controller.atStart;
+      final bottomArrowActive = _isReversed ? !controller.atStart : !controller.atEnd;
+
+      canvas.drawText(
+        offset + Offset(scrollbarX, 0),
+        '▲',
+        style: TextStyle(
+          color: topArrowActive ? Colors.brightWhite : Colors.gray,
+        ),
+      );
+
+      canvas.drawText(
+        offset + Offset(scrollbarX, scrollbarHeight - 1),
+        '▼',
+        style: TextStyle(
+          color: bottomArrowActive ? Colors.brightWhite : Colors.gray,
+        ),
+      );
+    }
+
+    // Draw scrollbar thumb (after arrows so it can overwrite them if overlapping)
     final thumbStart = thumbOffset.toInt();
     final thumbEnd = math.min(
       (thumbOffset + thumbHeight).toInt(),
@@ -228,25 +266,6 @@ class RenderScrollbar extends RenderObject with RenderObjectWithChildMixin<Rende
         offset + Offset(scrollbarX, y.toDouble()),
         '█',
         style: TextStyle(color: Colors.brightWhite),
-      );
-    }
-
-    // Draw arrows at top and bottom
-    if (scrollbarHeight >= 3) {
-      canvas.drawText(
-        offset + Offset(scrollbarX, 0),
-        '▲',
-        style: TextStyle(
-          color: controller.atStart ? Colors.gray : Colors.brightWhite,
-        ),
-      );
-
-      canvas.drawText(
-        offset + Offset(scrollbarX, scrollbarHeight - 1),
-        '▼',
-        style: TextStyle(
-          color: controller.atEnd ? Colors.gray : Colors.brightWhite,
-        ),
       );
     }
   }

@@ -13,6 +13,7 @@ class ScrollController extends ChangeNotifier {
   double _minScrollExtent = 0.0;
   double _maxScrollExtent = 0.0;
   double _viewportDimension = 0.0;
+  AxisDirection _axisDirection = AxisDirection.down;
 
   /// The current scroll offset.
   double get offset => _offset;
@@ -25,6 +26,13 @@ class ScrollController extends ChangeNotifier {
 
   /// The extent of the viewport in the scrolling direction.
   double get viewportDimension => _viewportDimension;
+
+  /// The axis direction of scrolling.
+  AxisDirection get axisDirection => _axisDirection;
+
+  /// Whether scrolling is reversed (up for vertical, left for horizontal).
+  bool get isReversed =>
+      _axisDirection == AxisDirection.up || _axisDirection == AxisDirection.left;
 
   /// Whether the [offset] is at the minimum value.
   bool get atStart => offset <= minScrollExtent;
@@ -40,24 +48,30 @@ class ScrollController extends ChangeNotifier {
     required double minScrollExtent,
     required double maxScrollExtent,
     required double viewportDimension,
+    AxisDirection? axisDirection,
   }) {
     final oldMin = _minScrollExtent;
     final oldMax = _maxScrollExtent;
     final oldViewport = _viewportDimension;
     final oldOffset = _offset;
-    
+    final oldAxisDirection = _axisDirection;
+
     _minScrollExtent = minScrollExtent;
     _maxScrollExtent = maxScrollExtent;
     _viewportDimension = viewportDimension;
+    if (axisDirection != null) {
+      _axisDirection = axisDirection;
+    }
 
     // Clamp the current offset to valid range
     _offset = _offset.clamp(minScrollExtent, maxScrollExtent);
-    
+
     // Only notify listeners if something actually changed
     if (oldMin != _minScrollExtent ||
         oldMax != _maxScrollExtent ||
         oldViewport != _viewportDimension ||
-        oldOffset != _offset) {
+        oldOffset != _offset ||
+        oldAxisDirection != _axisDirection) {
       notifyListeners();
     }
   }
