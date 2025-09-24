@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-cross--platform-brightgreen)](https://dart.dev/platforms)
 
-A powerful, Flutter-inspired Terminal User Interface framework for building beautiful command-line applications in Dart.
+A powerful, Flutter-inspired Terminal User Interface framework with Riverpod state management for building beautiful command-line applications in Dart.
 
 ![Nocterm Demo](doc/assets/demo.gif)
 
@@ -19,15 +19,17 @@ A powerful, Flutter-inspired Terminal User Interface framework for building beau
 - **🎯 Flutter-like API** - Familiar component-based architecture that mirrors Flutter's design patterns
 - **🔥 Hot Reload** - Instant UI updates during development for rapid iteration
 - **🎨 Rich Styling** - Full color support, borders, padding, and text styling
-- **⚡ Reactive State** - Built-in state management with `StatefulComponent` and `setState()`
+- **⚡ Reactive State** - Riverpod integration plus built-in `StatefulComponent` and `setState()`
+- **🐭 Mouse Support** - Full mouse interaction including wheel scrolling and click events
 - **⌨️ Input Handling** - Comprehensive keyboard event system with focus management
-- **📐 Flexible Layouts** - Row, Column, Stack, and constraint-based layouts
+- **📐 Flexible Layouts** - Row, Column, Stack, ConstrainedBox, and overlay-based layouts
+- **📝 Rich Text** - Markdown rendering with formatted text, lists, and code blocks
 - **🧪 Testing Framework** - Flutter-style testing utilities for TUI components
 - **🌈 Cross-Platform** - Works seamlessly on Windows, macOS, and Linux
 
 ## 🚦 Project Status
 
-> ⚠️ **Early Experimental Version (0.0.1)**
+> ⚠️ **Early Experimental Version (0.1.0)**
 > 
 > This framework is in active development. APIs may change significantly in future releases and breaking bugs are still present.
 
@@ -37,7 +39,7 @@ Add `nocterm` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  nocterm: ^0.0.1
+  nocterm: ^0.1.0
 ```
 
 
@@ -103,17 +105,26 @@ dart --enable-vm-service example/your_app.dart
 
 ## 🎨 Rich Components
 
-[x] Basic Layout (Colum/Row/Expanded/Container/Decoration)
+### Layout
+- ✅ **Basic** - Column, Row, Expanded, Container, Decoration
+- ✅ **Advanced** - Stack, ConstrainedBox, Overlay system
+- ✅ **Scrollable** - ListView, ScrollView with mouse wheel support
+- ✅ **Positioning** - Align, Center, Padding, Margin
 
-[x] TextField
+### Input & Interaction
+- ✅ **TextField** - Multi-line input with enhanced cursor styles
+- ✅ **Focusable** - Keyboard event handling and focus management
+- ✅ **Mouse Support** - Click and wheel events
 
-[x] Scrollables + Scrollbar
+### Display
+- ✅ **Text** - Rich text, markdown rendering, text wrapping
+- ✅ **Progress** - Progress bars and indicators
+- ✅ **Divider** - Horizontal and vertical dividers
+- ✅ **Terminal** - xTerm embedding for subprocess integration
 
-[x] Progressbar
-
-[x] xTerm embedder
-
-[ ] More to come!
+### State Management
+- ✅ **Riverpod** - Full reactive state management
+- ✅ **StatefulComponent** - Built-in setState pattern
 
 
 ## 🧪 Testing
@@ -156,23 +167,6 @@ void main() {
   });
 }
 ```
-
-## Known issues
-
-This is a very early release and things are still very unstable.
-
-- Hot reload may cause layout glitches (a restart fixes it)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit pull requests, report issues, or suggest new features.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
