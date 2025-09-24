@@ -12,7 +12,7 @@
 
 A powerful, Flutter-inspired Terminal User Interface framework with Riverpod state management for building beautiful command-line applications in Dart.
 
-![Nocterm Demo](doc/assets/demo.gif)
+![Nocterm Example](doc/assets/screenshot.png)
 
 ## ✨ Features
 
