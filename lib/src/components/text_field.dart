@@ -481,11 +481,19 @@ class _TextFieldState extends State<TextField> {
     final text = _controller.text;
     final selection = _controller.selection;
 
+    // Clamp selection offsets to valid range to handle race conditions
+    // where text may have been modified externally (e.g., by onChanged callback)
+    final textLength = text.length;
+    final clampedStart = selection.start.clamp(0, textLength);
+    final clampedEnd = selection.end.clamp(0, textLength);
+    final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
+    final isCollapsed = clampedStart == clampedEnd;
+
     // Check if we're at max length
     if (component.maxLength != null) {
       final currentLength = text.characters.length;
       final insertLength = char.characters.length;
-      final deleteLength = selection.isCollapsed ? 0 : (selection.end - selection.start);
+      final deleteLength = isCollapsed ? 0 : (clampedEnd - clampedStart);
 
       if (currentLength - deleteLength + insertLength > component.maxLength!) {
         return;
@@ -505,14 +513,14 @@ class _TextFieldState extends State<TextField> {
     String newText;
     int newOffset;
 
-    if (!selection.isCollapsed) {
+    if (!isCollapsed) {
       // Replace selected text
-      newText = text.substring(0, selection.start) + char + text.substring(selection.end);
-      newOffset = selection.start + char.length;
+      newText = text.substring(0, clampedStart) + char + text.substring(clampedEnd);
+      newOffset = clampedStart + char.length;
     } else {
       // Insert at cursor position
-      newText = text.substring(0, selection.extentOffset) + char + text.substring(selection.extentOffset);
-      newOffset = selection.extentOffset + char.length;
+      newText = text.substring(0, clampedExtentOffset) + char + text.substring(clampedExtentOffset);
+      newOffset = clampedExtentOffset + char.length;
     }
 
     _controller.text = newText;
@@ -526,14 +534,21 @@ class _TextFieldState extends State<TextField> {
     final text = _controller.text;
     final selection = _controller.selection;
 
-    if (!selection.isCollapsed) {
+    // Clamp selection offsets to valid range to handle race conditions
+    final textLength = text.length;
+    final clampedStart = selection.start.clamp(0, textLength);
+    final clampedEnd = selection.end.clamp(0, textLength);
+    final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
+    final isCollapsed = clampedStart == clampedEnd;
+
+    if (!isCollapsed) {
       // Delete selected text
-      _controller.text = text.substring(0, selection.start) + text.substring(selection.end);
-      _controller.selection = TextSelection.collapsed(offset: selection.start);
-    } else if (selection.extentOffset > 0) {
+      _controller.text = text.substring(0, clampedStart) + text.substring(clampedEnd);
+      _controller.selection = TextSelection.collapsed(offset: clampedStart);
+    } else if (clampedExtentOffset > 0) {
       // Delete the grapheme cluster before cursor
-      final textBefore = text.substring(0, selection.extentOffset);
-      final textAfter = text.substring(selection.extentOffset);
+      final textBefore = text.substring(0, clampedExtentOffset);
+      final textAfter = text.substring(clampedExtentOffset);
 
       // Use grapheme clusters to delete the entire cluster
       final graphemes = textBefore.characters;
@@ -549,14 +564,21 @@ class _TextFieldState extends State<TextField> {
     final text = _controller.text;
     final selection = _controller.selection;
 
-    if (!selection.isCollapsed) {
+    // Clamp selection offsets to valid range to handle race conditions
+    final textLength = text.length;
+    final clampedStart = selection.start.clamp(0, textLength);
+    final clampedEnd = selection.end.clamp(0, textLength);
+    final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
+    final isCollapsed = clampedStart == clampedEnd;
+
+    if (!isCollapsed) {
       // Delete selected text
-      _controller.text = text.substring(0, selection.start) + text.substring(selection.end);
-      _controller.selection = TextSelection.collapsed(offset: selection.start);
-    } else if (selection.extentOffset < text.length) {
+      _controller.text = text.substring(0, clampedStart) + text.substring(clampedEnd);
+      _controller.selection = TextSelection.collapsed(offset: clampedStart);
+    } else if (clampedExtentOffset < textLength) {
       // Delete the grapheme cluster after cursor
-      final textBefore = text.substring(0, selection.extentOffset);
-      final textAfter = text.substring(selection.extentOffset);
+      final textBefore = text.substring(0, clampedExtentOffset);
+      final textAfter = text.substring(clampedExtentOffset);
 
       // Use grapheme clusters to delete the entire cluster
       final graphemesAfter = textAfter.characters;
@@ -584,16 +606,23 @@ class _TextFieldState extends State<TextField> {
     final text = _controller.text;
     final selection = _controller.selection;
 
-    if (!selection.isCollapsed) {
+    // Clamp selection offsets to valid range to handle race conditions
+    final textLength = text.length;
+    final clampedStart = selection.start.clamp(0, textLength);
+    final clampedEnd = selection.end.clamp(0, textLength);
+    final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
+    final isCollapsed = clampedStart == clampedEnd;
+
+    if (!isCollapsed) {
       // Delete selected text
-      _controller.text = text.substring(0, selection.start) + text.substring(selection.end);
-      _controller.selection = TextSelection.collapsed(offset: selection.start);
+      _controller.text = text.substring(0, clampedStart) + text.substring(clampedEnd);
+      _controller.selection = TextSelection.collapsed(offset: clampedStart);
       return;
     }
 
-    if (selection.extentOffset == 0) return;
+    if (clampedExtentOffset == 0) return;
 
-    int start = selection.extentOffset;
+    int start = clampedExtentOffset;
 
     // Skip spaces backward
     while (start > 0 && _isSpace(text[start - 1])) {
@@ -605,7 +634,7 @@ class _TextFieldState extends State<TextField> {
       start--;
     }
 
-    _controller.text = text.substring(0, start) + text.substring(selection.extentOffset);
+    _controller.text = text.substring(0, start) + text.substring(clampedExtentOffset);
     _controller.selection = TextSelection.collapsed(offset: start);
   }
 
@@ -613,28 +642,35 @@ class _TextFieldState extends State<TextField> {
     final text = _controller.text;
     final selection = _controller.selection;
 
-    if (!selection.isCollapsed) {
+    // Clamp selection offsets to valid range to handle race conditions
+    final textLength = text.length;
+    final clampedStart = selection.start.clamp(0, textLength);
+    final clampedEnd = selection.end.clamp(0, textLength);
+    final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
+    final isCollapsed = clampedStart == clampedEnd;
+
+    if (!isCollapsed) {
       // Delete selected text
-      _controller.text = text.substring(0, selection.start) + text.substring(selection.end);
-      _controller.selection = TextSelection.collapsed(offset: selection.start);
+      _controller.text = text.substring(0, clampedStart) + text.substring(clampedEnd);
+      _controller.selection = TextSelection.collapsed(offset: clampedStart);
       return;
     }
 
-    if (selection.extentOffset >= text.length) return;
+    if (clampedExtentOffset >= textLength) return;
 
-    int end = selection.extentOffset;
+    int end = clampedExtentOffset;
 
     // Skip current word forward
-    while (end < text.length && !_isSpace(text[end])) {
+    while (end < textLength && !_isSpace(text[end])) {
       end++;
     }
 
     // Skip spaces forward
-    while (end < text.length && _isSpace(text[end])) {
+    while (end < textLength && _isSpace(text[end])) {
       end++;
     }
 
-    _controller.text = text.substring(0, selection.extentOffset) + text.substring(end);
+    _controller.text = text.substring(0, clampedExtentOffset) + text.substring(end);
     // Cursor position stays the same
   }
 
@@ -703,8 +739,16 @@ class _TextFieldState extends State<TextField> {
     if (!_controller.selection.isCollapsed) {
       final text = _controller.text;
       final selection = _controller.selection;
-      final selectedText = text.substring(selection.start, selection.end);
-      ClipboardManager.copy(selectedText);
+
+      // Clamp selection offsets to valid range to handle race conditions
+      final textLength = text.length;
+      final clampedStart = selection.start.clamp(0, textLength);
+      final clampedEnd = selection.end.clamp(0, textLength);
+
+      if (clampedStart < clampedEnd) {
+        final selectedText = text.substring(clampedStart, clampedEnd);
+        ClipboardManager.copy(selectedText);
+      }
     }
   }
 
@@ -713,14 +757,22 @@ class _TextFieldState extends State<TextField> {
     if (!_controller.selection.isCollapsed) {
       final text = _controller.text;
       final selection = _controller.selection;
-      final selectedText = text.substring(selection.start, selection.end);
 
-      // Copy to clipboard using OSC 52
-      ClipboardManager.copy(selectedText);
+      // Clamp selection offsets to valid range to handle race conditions
+      final textLength = text.length;
+      final clampedStart = selection.start.clamp(0, textLength);
+      final clampedEnd = selection.end.clamp(0, textLength);
 
-      // Delete the selected text
-      _controller.text = text.substring(0, selection.start) + text.substring(selection.end);
-      _controller.selection = TextSelection.collapsed(offset: selection.start);
+      if (clampedStart < clampedEnd) {
+        final selectedText = text.substring(clampedStart, clampedEnd);
+
+        // Copy to clipboard using OSC 52
+        ClipboardManager.copy(selectedText);
+
+        // Delete the selected text
+        _controller.text = text.substring(0, clampedStart) + text.substring(clampedEnd);
+        _controller.selection = TextSelection.collapsed(offset: clampedStart);
+      }
     }
   }
 

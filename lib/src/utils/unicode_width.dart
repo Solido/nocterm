@@ -161,9 +161,12 @@ class UnicodeWidth {
     if (rune >= 0x2600 && rune <= 0x26FF) {
       return true;
     }
-    
-    // Dingbats with emoji presentation
-    if (rune >= 0x2700 && rune <= 0x27BF) {
+
+    // Dingbats range - only specific emoji characters, not all
+    // Many symbols in this range (like ✓✗✘✔✖) are width 1
+    // Excluding: 0x2713-0x2718 (check marks and ballot X marks - width 1)
+    if ((rune >= 0x2700 && rune <= 0x2712) || // Before check marks
+        (rune >= 0x2719 && rune <= 0x27BF)) { // After ballot X marks
       return true;
     }
     
