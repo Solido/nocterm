@@ -146,9 +146,12 @@ class UnicodeWidth {
     return false;
   }
   
-  /// Check if a rune represents an emoji
+  /// Check if a rune represents an emoji (width 2)
+  ///
+  /// This uses an allowlist approach for common emoji ranges and specific characters.
+  /// Characters not in these ranges are treated as text symbols (width 1) by default.
   static bool _isEmoji(int rune) {
-    // Basic emoji blocks
+    // Basic emoji blocks - these are primarily emoji
     if ((rune >= 0x1F300 && rune <= 0x1F5FF) || // Misc Symbols and Pictographs
         (rune >= 0x1F600 && rune <= 0x1F64F) || // Emoticons
         (rune >= 0x1F680 && rune <= 0x1F6FF) || // Transport and Map Symbols
@@ -156,63 +159,79 @@ class UnicodeWidth {
         (rune >= 0x1FA70 && rune <= 0x1FAFF)) { // Symbols and Pictographs Extended-A
       return true;
     }
-    
-    // Miscellaneous Symbols
-    if (rune >= 0x2600 && rune <= 0x26FF) {
-      return true;
-    }
 
-    // Dingbats range - only specific emoji characters, not all
-    // Many symbols in this range (like ✓✗✘✔✖) are width 1
-    // Excluding: 0x2713-0x2718 (check marks and ballot X marks - width 1)
-    if ((rune >= 0x2700 && rune <= 0x2712) || // Before check marks
-        (rune >= 0x2719 && rune <= 0x27BF)) { // After ballot X marks
-      return true;
-    }
-    
     // Regional indicator symbols (flags)
     if (rune >= 0x1F1E6 && rune <= 0x1F1FF) {
       return true;
     }
-    
+
+    // Miscellaneous Symbols (0x2600-0x26FF) - use allowlist for emoji
+    // Most symbols here are text symbols, only specific ones are emoji
+    if (_isMiscSymbolEmoji(rune)) {
+      return true;
+    }
+
+    // Dingbats range (0x2700-0x27BF) - use allowlist for emoji
+    if (_isDingbatEmoji(rune)) {
+      return true;
+    }
+
     // Some specific emojis in other ranges
     if (rune == 0x231A || rune == 0x231B || // Watch, hourglass
         rune == 0x23E9 || rune == 0x23EA || // Fast forward, rewind
         rune == 0x23EB || rune == 0x23EC || // Up/down arrows
         rune == 0x23F0 || rune == 0x23F3 || // Alarm clock, hourglass flowing
         (rune >= 0x25FB && rune <= 0x25FE) || // Squares
-        (rune >= 0x2614 && rune <= 0x2615) || // Umbrella, coffee
-        (rune >= 0x2648 && rune <= 0x2653) || // Zodiac signs
-        rune == 0x267F || // Wheelchair
-        rune == 0x2693 || // Anchor
-        rune == 0x26A1 || // High voltage
-        (rune >= 0x26AA && rune <= 0x26AB) || // White/black circles
-        (rune >= 0x26BD && rune <= 0x26BE) || // Soccer, baseball
-        (rune >= 0x26C4 && rune <= 0x26C5) || // Snowman
-        rune == 0x26CE || // Ophiuchus
-        rune == 0x26D4 || // No entry
-        rune == 0x26EA || // Church
-        (rune >= 0x26F2 && rune <= 0x26F3) || // Fountain, flag
-        rune == 0x26F5 || // Sailboat
-        rune == 0x26FA || // Tent
-        rune == 0x26FD || // Fuel pump
-        rune == 0x2705 || // Check mark
-        (rune >= 0x270A && rune <= 0x270B) || // Raised fist/hand
-        rune == 0x2728 || // Sparkles
-        rune == 0x274C || // Cross mark
-        rune == 0x274E || // Cross mark negative
-        (rune >= 0x2753 && rune <= 0x2755) || // Question marks
-        rune == 0x2757 || // Exclamation
-        (rune >= 0x2795 && rune <= 0x2797) || // Plus/minus/divide
-        rune == 0x27B0 || // Curly loop
-        rune == 0x27BF || // Double curly loop
         (rune >= 0x2B1B && rune <= 0x2B1C) || // Black/white squares
         rune == 0x2B50 || // Star
         rune == 0x2B55) { // Heavy circle
       return true;
     }
-    
+
     return false;
+  }
+
+  /// Check if a character in the Miscellaneous Symbols range (0x2600-0x26FF) is an emoji
+  static bool _isMiscSymbolEmoji(int rune) {
+    if (rune < 0x2600 || rune > 0x26FF) return false;
+
+    // Allowlist of emoji in this range (rest are text symbols)
+    return rune == 0x2600 || // ☀ Sun
+        rune == 0x2601 || // ☁ Cloud
+        rune == 0x2602 || // ☂ Umbrella (can be emoji)
+        rune == 0x2603 || // ☃ Snowman
+        (rune >= 0x2614 && rune <= 0x2615) || // ☔☕ Umbrella with rain drops, Hot beverage
+        (rune >= 0x2648 && rune <= 0x2653) || // ♈-♓ Zodiac signs
+        rune == 0x267F || // ♿ Wheelchair
+        rune == 0x2693 || // ⚓ Anchor
+        rune == 0x26A1 || // ⚡ High voltage
+        (rune >= 0x26AA && rune <= 0x26AB) || // ⚪⚫ White/black circles
+        (rune >= 0x26BD && rune <= 0x26BE) || // ⚽⚾ Soccer, baseball
+        (rune >= 0x26C4 && rune <= 0x26C5) || // ⛄⛅ Snowman, sun behind cloud
+        rune == 0x26CE || // ⛎ Ophiuchus
+        rune == 0x26D4 || // ⛔ No entry
+        rune == 0x26EA || // ⛪ Church
+        (rune >= 0x26F2 && rune <= 0x26F3) || // ⛲⛳ Fountain, flag in hole
+        rune == 0x26F5 || // ⛵ Sailboat
+        rune == 0x26FA || // ⛺ Tent
+        rune == 0x26FD; // ⛽ Fuel pump
+  }
+
+  /// Check if a character in the Dingbats range (0x2700-0x27BF) is an emoji
+  static bool _isDingbatEmoji(int rune) {
+    if (rune < 0x2700 || rune > 0x27BF) return false;
+
+    // Allowlist of emoji in this range (rest are text symbols)
+    return rune == 0x2705 || // ✅ Check mark button
+        (rune >= 0x270A && rune <= 0x270B) || // ✊✋ Raised fist/hand
+        rune == 0x2728 || // ✨ Sparkles
+        rune == 0x274C || // ❌ Cross mark
+        rune == 0x274E || // ❎ Cross mark button
+        (rune >= 0x2753 && rune <= 0x2755) || // ❓❔❕ Question/exclamation marks
+        rune == 0x2757 || // ❗ Exclamation mark
+        (rune >= 0x2795 && rune <= 0x2797) || // ➕➖➗ Plus/minus/divide
+        rune == 0x27B0 || // ➰ Curly loop
+        rune == 0x27BF; // ➿ Double curly loop
   }
   
   /// Split a string into grapheme clusters with their positions and widths
