@@ -18,17 +18,6 @@ import '../rendering/mouse_tracker.dart';
 import '../rendering/mouse_hit_test.dart';
 import 'hot_reload_mixin.dart';
 
-// Debug logging for mouse events
-final _mouseDebugLog = File('mouse_debug.log');
-void _logMouse(String message) {
-  try {
-    final timestamp = DateTime.now().toIso8601String();
-    _mouseDebugLog.writeAsStringSync('[$timestamp] $message\n', mode: FileMode.append);
-  } catch (_) {
-    // Ignore errors
-  }
-}
-
 /// Terminal UI binding that handles terminal input/output and event loop
 class TerminalBinding extends NoctermBinding with HotReloadBinding {
   TerminalBinding(this.terminal) {
@@ -148,7 +137,6 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
           // allowing components to intercept it. Falls back to shutdown if unhandled.
         } else if (inputEvent is MouseInputEvent) {
           final event = inputEvent.event;
-          _logMouse('TerminalBinding: Received MouseInputEvent: button=${event.button} pos=(${event.x},${event.y}) pressed=${event.pressed}');
 
           // Add to mouse event stream
           _mouseEventController.add(event);
@@ -334,16 +322,12 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
 
   /// Route a mouse event through the component tree
   void _routeMouseEvent(MouseEvent event) {
-    _logMouse('_routeMouseEvent: button=${event.button} pos=(${event.x},${event.y}) pressed=${event.pressed}');
-
     if (rootElement == null) {
-      _logMouse('_routeMouseEvent: rootElement is null, returning');
       return;
     }
 
     // Handle wheel events for scrollable widgets
     if (event.button == MouseButton.wheelUp || event.button == MouseButton.wheelDown) {
-      _logMouse('_routeMouseEvent: Handling wheel event');
       // Find the render object at the mouse position
       final renderObject = _findRenderObjectInTree(rootElement!);
       if (renderObject != null) {
@@ -358,18 +342,11 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
       // Terminal coordinates are 1-based, convert to 0-based for hit testing
       final position = Offset((event.x - 1).toDouble(), (event.y - 1).toDouble());
 
-      _logMouse('_routeMouseEvent: Root render object: ${renderObject.runtimeType}');
-      _logMouse('_routeMouseEvent: Root size: ${renderObject.size}');
-      _logMouse('_routeMouseEvent: Performing hit test at position $position (adjusted from terminal coords ${event.x},${event.y})');
       // Perform hit test from the root render object
-      final hitResult = renderObject.hitTest(hitTestResult, position: position);
-      _logMouse('_routeMouseEvent: Hit test result=$hitResult, entries=${hitTestResult.mouseEntries.length}');
+      renderObject.hitTest(hitTestResult, position: position);
 
       // Update mouse tracker with hit test results
-      _logMouse('_routeMouseEvent: Updating mouse tracker with ${hitTestResult.mouseEntries.length} annotations');
       _mouseTracker.updateAnnotations(hitTestResult, event);
-    } else {
-      _logMouse('_routeMouseEvent: renderObject is null');
     }
   }
 
@@ -736,9 +713,8 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
 
 /// Run a TUI application
 Future<void> runApp(Component app, {bool enableHotReload = true}) async {
-  // Open log file for capturing print statements
-  final logFile = File('log.txt');
-  final logSink = logFile.openWrite(mode: FileMode.writeOnly);
+  // Create logger with in-memory buffering and debounced writes
+  final logger = Logger();
 
   // Store reference to binding for signal handler access
   TerminalBinding? binding;
@@ -760,19 +736,12 @@ Future<void> runApp(Component app, {bool enableHotReload = true}) async {
     },
         zoneSpecification: ZoneSpecification(
           print: (Zone self, ZoneDelegate parent, Zone zone, String message) {
-            // Write to log file instead of stdout
-            try {
-              logSink.writeln('[${DateTime.now().toIso8601String()}] $message');
-            } catch (_) {
-              // Ignore write errors if log sink is closed
-            }
+            // Write to logger with in-memory buffering
+            logger.log(message);
           },
           handleUncaughtError: (Zone self, ZoneDelegate parent, Zone zone, Object error, StackTrace stackTrace) {
-            try {
-              logSink.writeln('[${DateTime.now().toIso8601String()}] $error ${stackTrace.toString()}');
-            } catch (_) {
-              // Ignore write errors if log sink is closed
-            }
+            // Log errors with stack traces
+            logger.log('ERROR: $error\n$stackTrace');
           },
         ));
   } catch (e) {
@@ -784,10 +753,10 @@ Future<void> runApp(Component app, {bool enableHotReload = true}) async {
       binding!.shutdown();
     }
 
-    // Close log file gracefully
+    // Flush and close logger gracefully
     try {
-      await logSink.flush();
-      await logSink.close();
+      await logger.flush();
+      await logger.close();
     } catch (_) {
       // Ignore errors if already closed
     }

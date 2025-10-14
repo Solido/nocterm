@@ -54,3 +54,4 @@ export 'src/gestures/long_press.dart';
 
 // Utilities
 export 'src/utils/clipboard.dart';
+export 'src/utils/logger.dart';

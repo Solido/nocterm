@@ -1,16 +1,6 @@
-import 'dart:io';
 import '../keyboard/mouse_event.dart';
 import '../framework/framework.dart';
 import 'mouse_hit_test.dart';
-
-// Debug logging
-final _trackerLog = File('mouse_debug.log');
-void _logTracker(String message) {
-  try {
-    final timestamp = DateTime.now().toIso8601String();
-    _trackerLog.writeAsStringSync('[$timestamp] TRACKER: $message\n', mode: FileMode.append);
-  } catch (_) {}
-}
 
 /// Signature for mouse enter/exit/hover callbacks.
 typedef MouseEventCallback = void Function(MouseEvent event);
@@ -51,56 +41,38 @@ class MouseTracker {
   /// The set of annotations currently under the mouse cursor.
   final Set<MouseTrackerAnnotation> _hoveredAnnotations = {};
 
-  /// The last known mouse position.
-  Offset? _lastPosition;
-
   /// Update the hovered annotations based on hit test results and dispatch events.
   void updateAnnotations(
     MouseHitTestResult hitTestResult,
     MouseEvent event,
   ) {
-    final position = Offset(event.x.toDouble(), event.y.toDouble());
-    _lastPosition = position;
-
-    _logTracker('updateAnnotations: pos=$position entries=${hitTestResult.mouseEntries.length}');
 
     // Collect all annotations from the hit test result
     final Set<MouseTrackerAnnotation> newAnnotations = {};
     for (final entry in hitTestResult.mouseEntries) {
-      _logTracker('updateAnnotations: checking entry, target type=${entry.target.runtimeType}');
       if (entry.target is MouseTrackerAnnotationProvider) {
         final annotation =
             (entry.target as MouseTrackerAnnotationProvider).annotation;
         if (annotation != null) {
-          _logTracker('updateAnnotations: found annotation');
           newAnnotations.add(annotation);
-        } else {
-          _logTracker('updateAnnotations: annotation is null');
         }
-      } else {
-        _logTracker('updateAnnotations: target is not MouseTrackerAnnotationProvider');
       }
     }
-
-    _logTracker('updateAnnotations: found ${newAnnotations.length} annotations, previously had ${_hoveredAnnotations.length}');
 
     // Find annotations that were exited
     final exitedAnnotations = _hoveredAnnotations.difference(newAnnotations);
     for (final annotation in exitedAnnotations) {
-      _logTracker('updateAnnotations: calling onExit');
       annotation.onExit?.call(event);
     }
 
     // Find annotations that were entered
     final enteredAnnotations = newAnnotations.difference(_hoveredAnnotations);
     for (final annotation in enteredAnnotations) {
-      _logTracker('updateAnnotations: calling onEnter');
       annotation.onEnter?.call(event);
     }
 
     // Dispatch hover events to all currently hovered annotations
     for (final annotation in newAnnotations) {
-      _logTracker('updateAnnotations: calling onHover');
       annotation.onHover?.call(event);
     }
 
@@ -115,7 +87,6 @@ class MouseTracker {
       annotation.onExit?.call(event);
     }
     _hoveredAnnotations.clear();
-    _lastPosition = null;
   }
 }
 
