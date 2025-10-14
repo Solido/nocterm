@@ -4,6 +4,9 @@ import 'package:nocterm/nocterm.dart';
 import 'package:nocterm/src/components/focusable.dart';
 import 'package:nocterm/src/framework/terminal_canvas.dart';
 import 'package:nocterm/src/rectangle.dart';
+import 'package:nocterm/src/keyboard/mouse_event.dart';
+import 'package:nocterm/src/rendering/mouse_tracker.dart';
+import 'package:nocterm/src/rendering/mouse_hit_test.dart';
 
 import '../backend/terminal.dart' as term;
 import '../buffer.dart' as buf;
@@ -42,6 +45,12 @@ class NoctermTestBinding extends NoctermBinding {
   /// Queue of pending keyboard events to be processed
   final _pendingKeyboardEvents = <KeyboardEvent>[];
 
+  /// Queue of pending mouse events to be processed
+  final _pendingMouseEvents = <MouseEvent>[];
+
+  /// Mouse tracker for managing mouse annotations
+  final _mouseTracker = MouseTracker();
+
   /// Number of frames that have been rendered
   int _frameCount = 0;
   int get frameCount => _frameCount;
@@ -59,6 +68,12 @@ class NoctermTestBinding extends NoctermBinding {
     while (_pendingKeyboardEvents.isNotEmpty) {
       final event = _pendingKeyboardEvents.removeAt(0);
       _routeKeyboardEvent(event);
+    }
+
+    // Process any pending mouse events
+    while (_pendingMouseEvents.isNotEmpty) {
+      final event = _pendingMouseEvents.removeAt(0);
+      _routeMouseEvent(event);
     }
 
     // Draw the frame
@@ -108,6 +123,11 @@ class NoctermTestBinding extends NoctermBinding {
         ));
       }
     }
+  }
+
+  /// Simulate a mouse event
+  void sendMouseEvent(MouseEvent event) {
+    _pendingMouseEvents.add(event);
   }
 
   @override
@@ -183,6 +203,36 @@ class NoctermTestBinding extends NoctermBinding {
 
     // Try to dispatch the event to the root element
     _dispatchKeyToElement(rootElement!, event);
+  }
+
+  /// Route a mouse event through the component tree
+  void _routeMouseEvent(MouseEvent event) {
+    if (rootElement == null) return;
+
+    // Find the render object in the tree
+    final renderObject = _findRenderObjectInTree(rootElement!);
+    if (renderObject != null) {
+      final hitTestResult = MouseHitTestResult();
+      final position = Offset(event.x.toDouble(), event.y.toDouble());
+
+      // Perform hit test from the root render object
+      renderObject.hitTest(hitTestResult, position: position);
+
+      // Update mouse tracker with hit test results
+      _mouseTracker.updateAnnotations(hitTestResult, event);
+    }
+  }
+
+  /// Find the render object in the element tree
+  RenderObject? _findRenderObjectInTree(Element element) {
+    if (element is RenderObjectElement) {
+      return element.renderObject;
+    }
+    RenderObject? result;
+    element.visitChildren((child) {
+      result ??= _findRenderObjectInTree(child);
+    });
+    return result;
   }
 
   /// Dispatch a keyboard event to an element and its children

@@ -395,6 +395,19 @@ class RenderFlex extends RenderObject with ContainerRenderObjectMixin<RenderObje
     }
   }
 
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    // Test children in reverse order (last child first, like paint order)
+    for (final child in children.reversed) {
+      final FlexParentData childParentData = child.parentData as FlexParentData;
+      final childPosition = position - childParentData.offset;
+      if (child.hitTest(result, position: childPosition)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _paintOverflowIndicator(TerminalCanvas canvas, Offset offset) {
     // Create a checkerboard pattern for overflow area
     final overflowPattern = ['▒', '░'];

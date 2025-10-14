@@ -426,6 +426,16 @@ class RenderDecoratedBox extends RenderObject with RenderObjectWithChildMixin<Re
       _paintDecoration(canvas, offset);
     }
   }
+
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    if (child != null) {
+      final BoxParentData childParentData = child!.parentData as BoxParentData;
+      final childPosition = position - childParentData.offset;
+      return child!.hitTest(result, position: childPosition);
+    }
+    return false;
+  }
 }
 
 /// Border characters for different styles

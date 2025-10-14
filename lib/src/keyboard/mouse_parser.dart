@@ -1,16 +1,34 @@
+import 'dart:io';
 import 'mouse_event.dart';
+
+// Debug logging
+final _mouseParseLog = File('mouse_debug.log');
+void _logParse(String message) {
+  try {
+    final timestamp = DateTime.now().toIso8601String();
+    _mouseParseLog.writeAsStringSync('[$timestamp] PARSER: $message\n', mode: FileMode.append);
+  } catch (_) {}
+}
 
 /// Parses mouse escape sequences from terminal input
 class MouseParser {
   /// Parse SGR mouse sequence (ESC [ < button ; x ; y M/m)
   /// Returns null if not a valid mouse sequence
   static MouseEvent? parseSGR(List<int> buffer) {
-    if (buffer.length < 9) return null; // Minimum: ESC [ < 0 ; 1 ; 1 M
-    
-    // Check for ESC [ <
-    if (buffer[0] != 0x1B || buffer[1] != 0x5B || buffer[2] != 0x3C) {
+    _logParse('parseSGR called with ${buffer.length} bytes');
+
+    if (buffer.length < 9) {
+      _logParse('parseSGR: buffer too short (${buffer.length} < 9)');
       return null;
     }
+
+    // Check for ESC [ <
+    if (buffer[0] != 0x1B || buffer[1] != 0x5B || buffer[2] != 0x3C) {
+      _logParse('parseSGR: not a mouse sequence');
+      return null;
+    }
+
+    _logParse('parseSGR: found mouse sequence start ESC[<');
     
     // Find the terminator (M or m)
     int terminatorIndex = -1;
@@ -34,6 +52,8 @@ class MouseParser {
       final x = int.parse(parts[1]) - 1; // Convert to 0-based
       final y = int.parse(parts[2]) - 1; // Convert to 0-based
       final pressed = buffer[terminatorIndex] == 0x4D; // 'M' = press, 'm' = release
+
+      _logParse('parseSGR: buttonCode=$buttonCode x=$x y=$y pressed=$pressed');
       
       // Decode button from SGR button code
       MouseButton? button;
@@ -49,41 +69,53 @@ class MouseParser {
       } else if (buttonCode == 65) {
         button = MouseButton.wheelDown;
       } else {
-        // For motion events (bit 5 set) with no button (bits 0-1 = 3), ignore
+        // Handle motion and button events
         final baseButton = buttonCode & 0x3;
         final isMotion = (buttonCode & 0x20) != 0; // Bit 5
-        
+
         if (isMotion && baseButton == 3) {
-          // Mouse motion without button press - ignore for now
-          return null;
-        }
-        
-        // Regular button events
-        switch (baseButton) {
-          case 0:
-            button = MouseButton.left;
-            break;
-          case 1:
-            button = MouseButton.middle;
-            break;
-          case 2:
-            button = MouseButton.right;
-            break;
-          case 3:
-            // Release or no button
-            return null;
+          // Mouse motion without button press - use left button as placeholder
+          // and mark as not pressed to indicate hover/move
+          button = MouseButton.left;
+        } else {
+          // Regular button events
+          switch (baseButton) {
+            case 0:
+              button = MouseButton.left;
+              break;
+            case 1:
+              button = MouseButton.middle;
+              break;
+            case 2:
+              button = MouseButton.right;
+              break;
+            case 3:
+              // Release or no button - use left as placeholder
+              button = MouseButton.left;
+              break;
+          }
         }
       }
-      
-      if (button == null) return null;
-      
-      return MouseEvent(
+
+      if (button == null) {
+        _logParse('parseSGR: button is null, returning null');
+        return null;
+      }
+
+      // Determine if this is a motion event
+      final isMotionEvent = (buttonCode & 0x20) != 0; // Bit 5 indicates motion
+
+      final event = MouseEvent(
         button: button,
         x: x,
         y: y,
         pressed: pressed,
+        isMotion: isMotionEvent,
       );
+      _logParse('parseSGR: SUCCESS - created MouseEvent: button=$button pos=($x,$y) pressed=$pressed isMotion=$isMotionEvent');
+      return event;
     } catch (e) {
+      _logParse('parseSGR: ERROR parsing - $e');
       return null;
     }
   }

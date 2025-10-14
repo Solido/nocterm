@@ -14,7 +14,20 @@ import '../keyboard/input_parser.dart';
 import '../keyboard/input_event.dart';
 import '../keyboard/mouse_event.dart';
 import '../components/block_focus.dart';
+import '../rendering/mouse_tracker.dart';
+import '../rendering/mouse_hit_test.dart';
 import 'hot_reload_mixin.dart';
+
+// Debug logging for mouse events
+final _mouseDebugLog = File('mouse_debug.log');
+void _logMouse(String message) {
+  try {
+    final timestamp = DateTime.now().toIso8601String();
+    _mouseDebugLog.writeAsStringSync('[$timestamp] $message\n', mode: FileMode.append);
+  } catch (_) {
+    // Ignore errors
+  }
+}
 
 /// Terminal UI binding that handles terminal input/output and event loop
 class TerminalBinding extends NoctermBinding with HotReloadBinding {
@@ -39,6 +52,7 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
   final _keyboardEventController = StreamController<KeyboardEvent>.broadcast();
   final _inputParser = InputParser();
   final _mouseEventController = StreamController<MouseEvent>.broadcast();
+  final _mouseTracker = MouseTracker();
 
   // Event-driven loop support
   final _eventLoopController = StreamController<void>.broadcast();
@@ -134,6 +148,8 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
           // allowing components to intercept it. Falls back to shutdown if unhandled.
         } else if (inputEvent is MouseInputEvent) {
           final event = inputEvent.event;
+          _logMouse('TerminalBinding: Received MouseInputEvent: button=${event.button} pos=(${event.x},${event.y}) pressed=${event.pressed}');
+
           // Add to mouse event stream
           _mouseEventController.add(event);
 
@@ -318,19 +334,43 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
 
   /// Route a mouse event through the component tree
   void _routeMouseEvent(MouseEvent event) {
-    if (rootElement == null) return;
+    _logMouse('_routeMouseEvent: button=${event.button} pos=(${event.x},${event.y}) pressed=${event.pressed}');
+
+    if (rootElement == null) {
+      _logMouse('_routeMouseEvent: rootElement is null, returning');
+      return;
+    }
 
     // Handle wheel events for scrollable widgets
     if (event.button == MouseButton.wheelUp || event.button == MouseButton.wheelDown) {
+      _logMouse('_routeMouseEvent: Handling wheel event');
       // Find the render object at the mouse position
       final renderObject = _findRenderObjectInTree(rootElement!);
       if (renderObject != null) {
         _dispatchMouseWheelAtPosition(rootElement!, event, Offset(event.x.toDouble(), event.y.toDouble()), Offset.zero);
       }
     }
-    // For non-wheel mouse events (movement, clicks), we currently don't dispatch them
-    // This prevents them from being converted to keyboard events
-    // In the future, we could add proper mouse event handling here
+
+    // Perform hit test for all mouse events
+    final renderObject = _findRenderObjectInTree(rootElement!);
+    if (renderObject != null) {
+      final hitTestResult = MouseHitTestResult();
+      // Terminal coordinates are 1-based, convert to 0-based for hit testing
+      final position = Offset((event.x - 1).toDouble(), (event.y - 1).toDouble());
+
+      _logMouse('_routeMouseEvent: Root render object: ${renderObject.runtimeType}');
+      _logMouse('_routeMouseEvent: Root size: ${renderObject.size}');
+      _logMouse('_routeMouseEvent: Performing hit test at position $position (adjusted from terminal coords ${event.x},${event.y})');
+      // Perform hit test from the root render object
+      final hitResult = renderObject.hitTest(hitTestResult, position: position);
+      _logMouse('_routeMouseEvent: Hit test result=$hitResult, entries=${hitTestResult.mouseEntries.length}');
+
+      // Update mouse tracker with hit test results
+      _logMouse('_routeMouseEvent: Updating mouse tracker with ${hitTestResult.mouseEntries.length} annotations');
+      _mouseTracker.updateAnnotations(hitTestResult, event);
+    } else {
+      _logMouse('_routeMouseEvent: renderObject is null');
+    }
   }
 
   /// Find the render object in the element tree

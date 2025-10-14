@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:nocterm/nocterm.dart';
+import 'package:nocterm/src/keyboard/mouse_event.dart';
 
 /// Main testing interface for TUI applications.
 /// Provides methods for rendering frames, simulating input, and inspecting state.
@@ -136,6 +137,90 @@ class NoctermTester {
   Future<void> sendArrowDown() => sendKey(LogicalKey.arrowDown);
   Future<void> sendArrowLeft() => sendKey(LogicalKey.arrowLeft);
   Future<void> sendArrowRight() => sendKey(LogicalKey.arrowRight);
+
+  /// Send a mouse event
+  Future<void> sendMouseEvent(MouseEvent event) async {
+    _binding.sendMouseEvent(event);
+    await pump();
+  }
+
+  /// Simulate a mouse tap at the given position
+  Future<void> tap(int x, int y) async {
+    // Send press event
+    await sendMouseEvent(MouseEvent(
+      button: MouseButton.left,
+      x: x,
+      y: y,
+      pressed: true,
+    ));
+
+    // Send release event
+    await sendMouseEvent(MouseEvent(
+      button: MouseButton.left,
+      x: x,
+      y: y,
+      pressed: false,
+    ));
+  }
+
+  /// Simulate mouse hover at the given position
+  Future<void> hover(int x, int y) async {
+    await sendMouseEvent(MouseEvent(
+      button: MouseButton.left,
+      x: x,
+      y: y,
+      pressed: false,
+    ));
+  }
+
+  /// Simulate a mouse press at the given position (without releasing)
+  Future<void> press(int x, int y) async {
+    await sendMouseEvent(MouseEvent(
+      button: MouseButton.left,
+      x: x,
+      y: y,
+      pressed: true,
+    ));
+  }
+
+  /// Simulate a mouse release at the given position
+  Future<void> release(int x, int y) async {
+    await sendMouseEvent(MouseEvent(
+      button: MouseButton.left,
+      x: x,
+      y: y,
+      pressed: false,
+    ));
+  }
+
+  /// Simulate mouse movement from one position to another
+  Future<void> mouseMove(int startX, int startY, int endX, int endY) async {
+    // Send press at start
+    await press(startX, startY);
+
+    // Move gradually towards end (for smooth movement simulation)
+    final dx = (endX - startX).abs();
+    final dy = (endY - startY).abs();
+    final steps = dx > dy ? dx : dy;
+
+    if (steps > 0) {
+      for (int i = 1; i <= steps; i++) {
+        final t = i / steps;
+        final x = (startX + (endX - startX) * t).round();
+        final y = (startY + (endY - startY) * t).round();
+
+        await sendMouseEvent(MouseEvent(
+          button: MouseButton.left,
+          x: x,
+          y: y,
+          pressed: true,
+        ));
+      }
+    }
+
+    // Release at end
+    await release(endX, endY);
+  }
 
   /// Render the current state as a string for debugging
   String renderToString({bool showBorders = true}) {

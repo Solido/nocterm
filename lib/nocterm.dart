@@ -43,5 +43,14 @@ export 'src/navigation/overlay.dart';
 
 export 'src/components/markdown_text.dart';
 
+// Mouse and Gesture Support
+export 'src/components/mouse_region.dart';
+export 'src/components/gesture_detector.dart';
+export 'src/gestures/events.dart';
+export 'src/gestures/hit_test.dart';
+export 'src/gestures/recognizer.dart';
+export 'src/gestures/tap.dart';
+export 'src/gestures/long_press.dart';
+
 // Utilities
 export 'src/utils/clipboard.dart';

@@ -430,6 +430,16 @@ class RenderConstrainedBox extends RenderObject with RenderObjectWithChildMixin<
       child!.paint(canvas, offset + childParentData.offset);
     }
   }
+
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    if (child != null) {
+      final BoxParentData childParentData = child!.parentData as BoxParentData;
+      final childPosition = position - childParentData.offset;
+      return child!.hitTest(result, position: childPosition);
+    }
+    return false;
+  }
 }
 
 class RenderPadding extends RenderObject with RenderObjectWithChildMixin<RenderObject> {
@@ -465,6 +475,16 @@ class RenderPadding extends RenderObject with RenderObjectWithChildMixin<RenderO
       childParentData.offset = Offset(padding.left, padding.top);
       child!.paint(canvas, offset + childParentData.offset);
     }
+  }
+
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    if (child != null) {
+      final BoxParentData childParentData = child!.parentData as BoxParentData;
+      final childPosition = position - childParentData.offset;
+      return child!.hitTest(result, position: childPosition);
+    }
+    return false;
   }
 }
 
@@ -532,6 +552,16 @@ class RenderPositionedBox extends RenderObject with RenderObjectWithChildMixin<R
       final BoxParentData childParentData = child!.parentData as BoxParentData;
       child!.paint(canvas, offset + childParentData.offset);
     }
+  }
+
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    if (child != null) {
+      final BoxParentData childParentData = child!.parentData as BoxParentData;
+      final childPosition = position - childParentData.offset;
+      return child!.hitTest(result, position: childPosition);
+    }
+    return false;
   }
 }
 

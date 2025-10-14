@@ -242,4 +242,16 @@ class RenderSingleChildViewport extends RenderObject
     // Paint the child at the combined offset (viewport offset + scroll offset)
     child!.paint(clippedCanvas, Offset.zero + scrollOffset);
   }
+
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    if (child != null) {
+      // Account for scroll offset when hit testing
+      final scrollOffset =
+          scrollDirection == Axis.vertical ? Offset(0, -_controller.offset) : Offset(-_controller.offset, 0);
+      final childPosition = position - scrollOffset;
+      return child!.hitTest(result, position: childPosition);
+    }
+    return false;
+  }
 }
