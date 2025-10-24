@@ -339,8 +339,8 @@ class TerminalBinding extends NoctermBinding with HotReloadBinding {
     final renderObject = _findRenderObjectInTree(rootElement!);
     if (renderObject != null) {
       final hitTestResult = MouseHitTestResult();
-      // Terminal coordinates are 1-based, convert to 0-based for hit testing
-      final position = Offset((event.x - 1).toDouble(), (event.y - 1).toDouble());
+      // Mouse coordinates are already 0-based (converted by MouseParser)
+      final position = Offset(event.x.toDouble(), event.y.toDouble());
 
       // Perform hit test from the root render object
       renderObject.hitTest(hitTestResult, position: position);
