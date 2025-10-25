@@ -836,6 +836,78 @@ class RenderListViewport extends RenderObject with ScrollableRenderObjectMixin {
     }
   }
 
+  @override
+  bool hitTest(HitTestResult result, {required Offset position}) {
+    // Check if position is within our bounds
+    if (!Rect.fromLTWH(0, 0, size.width, size.height).contains(position)) {
+      return false;
+    }
+
+    // Test children (will add to result if hit)
+    bool hitChild = hitTestChildren(result, position: position);
+
+    // Add ourselves if we hit
+    if (hitChild || hitTestSelf(position)) {
+      result.add(this);
+      return true;
+    }
+
+    return false;
+  }
+
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    final effectivePadding = padding ?? EdgeInsets.zero;
+    final scrollOffset = _controller.offset;
+
+    // Calculate viewport extent for reverse mode
+    final viewportExtent = scrollDirection == Axis.vertical
+        ? size.height - effectivePadding.top - effectivePadding.bottom
+        : size.width - effectivePadding.left - effectivePadding.right;
+
+    // Test visible children in reverse order (front to back)
+    for (int i = _visibleChildren.length - 1; i >= 0; i--) {
+      final child = _visibleChildren[i];
+      double childPosition = child.offset - scrollOffset;
+
+      // Get child extent (needed for reverse mode and bounds checking)
+      final childExtent = scrollDirection == Axis.vertical
+          ? child.renderObject.size.height
+          : child.renderObject.size.width;
+
+      // Apply reverse mode transformation
+      if (_reverse) {
+        childPosition = viewportExtent - childPosition - childExtent;
+      }
+
+      final childOffset = scrollDirection == Axis.vertical
+          ? Offset(effectivePadding.left, effectivePadding.top + childPosition)
+          : Offset(effectivePadding.left + childPosition, effectivePadding.top);
+
+      // Check if position is within child's bounds before testing
+      final childBounds = Rect.fromLTWH(
+        childOffset.dx,
+        childOffset.dy,
+        child.renderObject.size.width,
+        child.renderObject.size.height,
+      );
+
+      if (!childBounds.contains(position)) {
+        continue; // Skip this child
+      }
+
+      // Transform position to child's local coordinates
+      final localPosition = position - childOffset;
+
+      // Test if this child was hit
+      if (child.renderObject.hitTest(result, position: localPosition)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /// Gets the offset and extent of an item by its index.
   ///
   /// Returns a record with (offset, extent) if the item is found,

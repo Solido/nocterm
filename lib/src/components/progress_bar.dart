@@ -188,6 +188,9 @@ class RenderProgressBar extends RenderObject {
   }
 
   @override
+  bool hitTestSelf(Offset position) => true;
+
+  @override
   void performLayout() {
     final desiredHeight = minHeight.clamp(1.0, constraints.maxHeight);
     size = constraints.constrain(Size(

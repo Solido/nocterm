@@ -76,6 +76,9 @@ class RenderParagraph extends RenderObject {
   }
 
   @override
+  bool hitTestSelf(Offset position) => true;
+
+  @override
   void performLayout() {
     final maxWidth = constraints.maxWidth.isFinite
         ? constraints.maxWidth.toInt()

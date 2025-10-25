@@ -158,6 +158,12 @@ class RenderScrollbar extends RenderObject with RenderObjectWithChildMixin<Rende
   }
 
   @override
+  bool hitTestSelf(Offset position) {
+    // Hit test if position is on the scrollbar area
+    return position.dx >= size.width - thickness;
+  }
+
+  @override
   void performLayout() {
     if (child == null) {
       size = constraints.constrain(Size.zero);
@@ -270,17 +276,16 @@ class RenderScrollbar extends RenderObject with RenderObjectWithChildMixin<Rende
     }
   }
 
-  // Hit testing removed for now
-  // @override
-  // bool hitTestChildren(HitTestResult result, {required Offset position}) {
-  //   if (child == null) return false;
-  //
-  //   // Check if the position is in the scrollbar area
-  //   if (position.dx >= size.width - thickness) {
-  //     // Click is on scrollbar, don't pass to child
-  //     return false;
-  //   }
-  //
-  //   return child!.hitTest(result, position: position);
-  // }
+  @override
+  bool hitTestChildren(HitTestResult result, {required Offset position}) {
+    if (child == null) return false;
+
+    // Check if the position is in the scrollbar area
+    if (position.dx >= size.width - thickness) {
+      // Click is on scrollbar, don't pass to child
+      return false;
+    }
+
+    return child!.hitTest(result, position: position);
+  }
 }

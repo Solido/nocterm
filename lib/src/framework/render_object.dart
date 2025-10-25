@@ -465,9 +465,8 @@ abstract class RenderObject {
   }
 
   /// Override this to test whether this render object hits at the given position.
-  bool hitTestSelf(Offset position) {
-    return false;
-  }
+  @protected
+  bool hitTestSelf(Offset position) => false;
 
   /// Called during layout to update internal layout state.
   void _layoutWithoutResize() {

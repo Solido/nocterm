@@ -105,33 +105,31 @@ class RenderMouseRegion extends RenderObject
       return false;
     }
 
-    // Add this render object to hit test if we have an annotation
-    // Use the annotation getter to allow subclasses to override
-    if (annotation != null && result is MouseHitTestResult) {
-      result.addWithPosition(target: this, localPosition: position);
-    }
-
-    // Test children
-    bool hitChild = false;
+    // Test children first
+    bool hitTarget = false;
     if (child != null) {
       final BoxParentData childParentData = child!.parentData as BoxParentData;
       final childPosition = position - childParentData.offset;
-      hitChild = child!.hitTest(result, position: childPosition);
+      hitTarget = child!.hitTest(result, position: childPosition);
     }
 
-    // If opaque, always consider this a hit (even if child didn't hit)
-    // If not opaque, only hit if child hit
-    if (_opaque) {
-      return true;
+    // Check if we ourselves should be considered a hit
+    // If opaque, we hit even if children didn't (to block events from widgets behind us)
+    hitTarget = hitTarget || hitTestSelf(position) || _opaque;
+
+    // Add annotation AFTER testing children, only if something was hit
+    if (hitTarget && annotation != null && result is MouseHitTestResult) {
+      result.addWithPosition(target: this, localPosition: position);
     }
 
-    return hitChild || hitTestSelf(position);
+    return hitTarget;
   }
 
   @override
   bool hitTestSelf(Offset position) {
     // We hit ourselves if we have callbacks
-    // Use the annotation getter to allow subclasses to override
+    // Note: The opaque flag is handled by always returning true from hitTest
+    // when we're within bounds, which matches Flutter's behavior
     return annotation != null;
   }
 

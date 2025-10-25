@@ -73,6 +73,9 @@ class RenderText extends RenderObject {
   TextLayoutResult? _layoutResult;
 
   @override
+  bool hitTestSelf(Offset position) => true;
+
+  @override
   void performLayout() {
     // For text alignment to work properly, we need to use the actual constraint width
     // When in a Column without stretch, we get infinite width, so we use intrinsic width

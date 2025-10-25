@@ -35,12 +35,87 @@ class _MouseDemoState extends State<MouseDemo> {
   int _longPressCount = 0;
   bool _isHovering = false;
   bool _isPressing = false;
+  int? _hoveredListItem;
+  int? _selectedListItem;
 
   @override
   Component build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          width: 100,
+          height: 30,
+          color: Color.fromRGB(100, 100, 100),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+          child: ListView(
+            children: List.generate(10, (index) {
+              final isHovered = _hoveredListItem == index;
+              final isSelected = _selectedListItem == index;
+              return Container(
+                  child: Column(
+                children: [
+                  MouseRegion(
+                    onEnter: (event) {
+                      _log('ListView item $index: onEnter');
+                      setState(() {
+                        _hoveredListItem = index;
+                        _lastEvent = 'Hover item $index';
+                      });
+                    },
+                    onExit: (event) {
+                      _log('ListView item $index: onExit');
+                      setState(() {
+                        _hoveredListItem = null;
+                      });
+                    },
+                    child: GestureDetector(
+                      onTap: () {
+                        shutdownApp();
+                        _log('ListView item $index: onTap');
+                        setState(() {
+                          _selectedListItem = index;
+                          _lastEvent = 'Selected item $index';
+                        });
+                      },
+                      child: Container(
+                        //padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
+                        decoration: BoxDecoration(
+                          //border: BoxBorder.all(),
+                          color: Colors.red,
+                        ),
+                        child: Text(
+                          isSelected
+                              ? '▶ Item $index (Selected)'
+                              : isHovered
+                                  ? '→ Item $index (Hovered)'
+                                  : '  Item $index',
+                          style: TextStyle(
+                            fontWeight: isSelected || isHovered ? FontWeight.bold : null,
+                            color: isSelected
+                                ? const Color(0xFF00FF00)
+                                : isHovered
+                                    ? const Color(0xFFFFFF00)
+                                    : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                ],
+              ));
+            }),
+          ),
+        ),
+      ],
+    );
     return Container(
-      width: 80,
-      height: 24,
+      width: 100,
+      height: 30,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -233,13 +308,15 @@ class _MouseDemoState extends State<MouseDemo> {
                   });
                 },
                 onLongPressStart: (details) {
-                  _log('GestureDetector.onLongPressStart: local=(${details.localPosition.dx}, ${details.localPosition.dy})');
+                  _log(
+                      'GestureDetector.onLongPressStart: local=(${details.localPosition.dx}, ${details.localPosition.dy})');
                   setState(() {
                     _lastEvent = 'Long press started...';
                   });
                 },
                 onLongPressEnd: (details) {
-                  _log('GestureDetector.onLongPressEnd: local=(${details.localPosition.dx}, ${details.localPosition.dy})');
+                  _log(
+                      'GestureDetector.onLongPressEnd: local=(${details.localPosition.dx}, ${details.localPosition.dy})');
                   setState(() {
                     _lastEvent = 'Long press ended';
                   });
@@ -260,6 +337,75 @@ class _MouseDemoState extends State<MouseDemo> {
                 ),
               ),
             ],
+          ),
+
+          const SizedBox(height: 1),
+
+          // ListView with MouseRegion demo
+          Container(
+            padding: const EdgeInsets.only(left: 2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('ListView with MouseRegion:'),
+                const SizedBox(height: 1),
+                Container(
+                  width: 94,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    border: BoxBorder.all(),
+                  ),
+                  child: ListView(
+                    children: List.generate(10, (index) {
+                      final isHovered = _hoveredListItem == index;
+                      final isSelected = _selectedListItem == index;
+                      return MouseRegion(
+                        onEnter: (event) {
+                          _log('ListView item $index: onEnter');
+                          setState(() {
+                            _hoveredListItem = index;
+                            _lastEvent = 'Hover item $index';
+                          });
+                        },
+                        onExit: (event) {
+                          _log('ListView item $index: onExit');
+                          setState(() {
+                            _hoveredListItem = null;
+                          });
+                        },
+                        child: GestureDetector(
+                          onTap: () {
+                            _log('ListView item $index: onTap');
+                            setState(() {
+                              _selectedListItem = index;
+                              _lastEvent = 'Selected item $index';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 1),
+                            child: Text(
+                              isSelected
+                                  ? '▶ Item $index (Selected)'
+                                  : isHovered
+                                      ? '→ Item $index (Hovered)'
+                                      : '  Item $index',
+                              style: TextStyle(
+                                fontWeight: isSelected || isHovered ? FontWeight.bold : null,
+                                color: isSelected
+                                    ? const Color(0xFF00FF00)
+                                    : isHovered
+                                        ? const Color(0xFFFFFF00)
+                                        : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const Spacer(),

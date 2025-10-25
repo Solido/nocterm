@@ -10,3 +10,4 @@ export 'src/test/matchers.dart' show containsText, hasTextAt, hasStyledText, mat
 // Re-export commonly used types
 export 'src/keyboard/keyboard_event.dart' show KeyboardEvent, ModifierKeys;
 export 'src/keyboard/logical_key.dart' show LogicalKey;
+export 'src/keyboard/mouse_event.dart' show MouseEvent, MouseButton;

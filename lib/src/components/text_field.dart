@@ -1027,6 +1027,9 @@ class RenderTextField extends RenderObject {
   CursorStyle _cursorStyle;
   Color? _selectionColor;
   TextAlign _textAlign;
+
+  @override
+  bool hitTestSelf(Offset position) => true;
   int? _maxLines;
   bool _isFocused;
   bool _obscureText;

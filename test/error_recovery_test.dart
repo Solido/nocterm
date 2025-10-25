@@ -192,7 +192,4 @@ class _RenderRecoverable extends RenderObject {
 
     canvas.drawText(offset, 'Recovered');
   }
-
-  @override
-  bool hitTestSelf(Offset position) => false;
 }
