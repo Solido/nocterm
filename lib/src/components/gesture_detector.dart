@@ -246,19 +246,25 @@ class _RenderGestureDetector extends RenderMouseRegion {
   void Function(MouseEvent) _onPointerDown;
   void Function(MouseEvent) get onPointerDown => _onPointerDown;
   set onPointerDown(void Function(MouseEvent) value) {
+    if (_onPointerDown == value) return;
     _onPointerDown = value;
+    _updateGestureAnnotation();
   }
 
   void Function(MouseEvent) _onPointerUp;
   void Function(MouseEvent) get onPointerUp => _onPointerUp;
   set onPointerUp(void Function(MouseEvent) value) {
+    if (_onPointerUp == value) return;
     _onPointerUp = value;
+    _updateGestureAnnotation();
   }
 
   void Function(MouseEvent) _onPointerMove;
   void Function(MouseEvent) get onPointerMove => _onPointerMove;
   set onPointerMove(void Function(MouseEvent) value) {
+    if (_onPointerMove == value) return;
     _onPointerMove = value;
+    _updateGestureAnnotation();
   }
 
   HitTestBehavior _behavior;
