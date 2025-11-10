@@ -42,6 +42,8 @@ export 'src/navigation/navigator_observer.dart';
 export 'src/navigation/overlay.dart';
 
 export 'src/components/markdown_text.dart';
+export 'src/components/syntax_highlight_text.dart';
+export 'src/components/syntax_highlight_theme.dart';
 
 // Mouse and Gesture Support
 export 'src/components/mouse_region.dart';
