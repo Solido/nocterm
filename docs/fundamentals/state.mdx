@@ -3,8 +3,6 @@ title: State Management
 description: Managing state in your Nocterm apps
 ---
 
-# State management
-
 State is data that changes over time. This guide shows you how to manage state in Nocterm apps using `setState()` and other patterns.
 
 ## Using setState
@@ -59,17 +57,12 @@ When you call `setState()`:
 
 `setState()` schedules a rebuild. It doesn't rebuild immediately—Nocterm batches updates for efficiency.
 
-Always update state inside the `setState()` function:
+Update state inside the `setState()` function:
 
 ```dart
-// Correct
 setState(() {
   _count++;
 });
-
-// Wrong - UI won't update
-_count++;
-setState(() {});
 ```
 
 The function you pass to `setState()` should be fast. Don't do expensive work inside it.

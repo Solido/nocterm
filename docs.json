@@ -38,7 +38,7 @@
         {
           "title": "Terminal Limitations",
           "href": "/terminal-concepts/limitations",
-          "icon": "alert-circle"
+          "icon": "warning"
         }
       ]
     },
