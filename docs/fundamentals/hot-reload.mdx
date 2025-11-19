@@ -1,0 +1,178 @@
+---
+title: Hot Reload
+description: Fast development with hot reload
+---
+
+# Hot reload
+
+Hot reload lets you see code changes instantly without restarting your app. This guide shows you how to use hot reload for faster development.
+
+## What is hot reload?
+
+Hot reload updates your running app when you save changes to your code. Your app stays running, state is preserved, and you see changes in seconds.
+
+This is much faster than:
+1. Stopping the app
+2. Making changes
+3. Restarting the app
+4. Navigating back to where you were
+
+With hot reload, you edit and save. The app updates automatically.
+
+## Enabling hot reload
+
+Run your app with the `--enable-vm-service` flag:
+
+```bash
+dart --enable-vm-service your_app.dart
+```
+
+This starts the Dart VM service that enables hot reload.
+
+When your app starts, you'll see output like:
+
+```
+The Dart VM service is listening on http://127.0.0.1:8181/...
+```
+
+Your app is now ready for hot reload.
+
+## How to hot reload
+
+The hot reload process depends on your editor.
+
+### VS Code
+
+1. Run your app with `--enable-vm-service`
+2. Make changes to your code
+3. Save the file (`Cmd+S` or `Ctrl+S`)
+4. Hot reload happens automatically
+
+VS Code detects the VM service and triggers reload on save.
+
+### Command line
+
+If hot reload doesn't trigger automatically:
+
+1. Run your app with `--enable-vm-service`
+2. Make changes to your code
+3. Save the file
+4. The hotreloader package watches for changes and triggers reload
+
+Nocterm uses the `hotreloader` package which monitors file changes and triggers reassembly.
+
+## What gets preserved
+
+Hot reload preserves:
+- **State**: Values in `State` objects stay the same
+- **Position**: Your place in the UI (selected tab, scroll position, etc.)
+- **Terminal**: The app stays running in your terminal
+
+This means you can:
+- Edit a counter app without resetting the count
+- Change colors and see them update live
+- Tweak layout without losing your navigation state
+
+## What gets reset
+
+Hot reload rebuilds:
+- **UI**: The `build()` methods run with new code
+- **Component tree**: Components reconstruct with your changes
+
+Hot reload does **not** run:
+- `main()` again
+- `initState()` again (state objects persist)
+- Constructors for existing state objects
+
+## Limitations
+
+Hot reload works for most changes, but some require a full restart:
+
+### Changes that need restart
+- Modifying `main()`
+- Changing global variables
+- Adding or removing imports
+- Changing class names or file structure
+- Modifying `initState()` (existing state won't re-initialize)
+
+For these changes, stop your app (`Ctrl+C`) and restart it.
+
+### Changes that work with hot reload
+- Editing `build()` methods
+- Changing colors, text, and styling
+- Modifying layout and component structure
+- Updating event handlers
+- Changing state update logic in `setState()`
+
+## Tips for effective hot reload
+
+### Structure code for hot reload
+
+Extract UI into methods that hot reload can update:
+
+```dart
+// Good - changes hot reload
+@override
+Component build(BuildContext context) {
+  return _buildContent();
+}
+
+Component _buildContent() {
+  return Text('Content here');
+}
+
+// Also good - inline changes hot reload
+@override
+Component build(BuildContext context) {
+  return Text('Content here');
+}
+```
+
+### Use const constructors
+
+Const components don't rebuild during hot reload, making it faster:
+
+```dart
+const Text('Static text')  // Skipped during hot reload
+Text('Dynamic: $value')     // Rebuilt during hot reload
+```
+
+### Reset state when needed
+
+If you need to reset state during development, add a global key and change it:
+
+```dart
+// Before hot reload
+runApp(MyApp(key: ValueKey('v1')));
+
+// After hot reload - forces new state
+runApp(MyApp(key: ValueKey('v2')));
+```
+
+Changing the key creates a new state object.
+
+### Watch terminal output
+
+Your terminal shows what's happening:
+
+```
+Hot reload completed successfully
+```
+
+If hot reload fails, you'll see an error. Read it to find the issue.
+
+## Troubleshooting
+
+**Hot reload doesn't work**: Make sure you started with `--enable-vm-service`.
+
+**Changes don't appear**: Some changes need a full restart. Try stopping and restarting your app.
+
+**State resets unexpectedly**: You might have changed something that requires a new state object. Add debug prints in `initState()` to see if it runs again.
+
+**Errors after hot reload**: Your code might have compilation errors. Check the terminal output for error messages.
+
+## Next steps
+
+- [Layout](/components/layout) - Build UIs with layout components
+- [Text & Styling](/components/text) - Style your text
+- [Input](/components/input) - Add user input
