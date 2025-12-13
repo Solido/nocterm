@@ -150,6 +150,17 @@ class KeyboardParser {
       );
     }
 
+    // Check for ESC + newline (0x0A) or ESC + carriage return (0x0D)
+    // This is Shift+Enter / Alt+Enter fallback
+    // Some terminals (like iTerm2, VS Code terminal) can be configured to send this
+    if (_buffer.length == 2 && (_buffer[1] == 0x0A || _buffer[1] == 0x0D)) {
+      return KeyboardEvent(
+        logicalKey: LogicalKey.enter,
+        character: '\n',
+        modifiers: const ModifierKeys(shift: true),
+      );
+    }
+
     // Check for Alt+key combinations (ESC followed by character)
     if (_buffer.length == 2) {
       final second = _buffer[1];
@@ -192,6 +203,11 @@ class KeyboardParser {
   }
 
   KeyboardEvent? _parseCSISequence() {
+    // Check for CSI u sequences (Kitty keyboard protocol)
+    // Format: ESC [ codepoint ; modifier u
+    final csiUResult = _parseCSIUSequence();
+    if (csiUResult != null) return csiUResult;
+
     // Arrow keys: ESC [ A/B/C/D
     if (_buffer.length == 3) {
       switch (_buffer[2]) {
@@ -440,6 +456,89 @@ class KeyboardParser {
     }
 
     return null;
+  }
+
+  /// Parse CSI u sequences from Kitty keyboard protocol
+  /// Format: ESC [ codepoint ; modifier u
+  /// Where modifier is: 1=none, 2=Shift, 3=Alt, 4=Shift+Alt, 5=Ctrl, 6=Ctrl+Shift, 7=Ctrl+Alt, 8=Ctrl+Alt+Shift
+  KeyboardEvent? _parseCSIUSequence() {
+    // Must end with 'u' (0x75)
+    if (_buffer.isEmpty || _buffer.last != 0x75) return null;
+
+    // Parse the sequence: ESC [ number ; number u
+    // Minimum length: ESC [ n u = 4 bytes
+    // With modifier: ESC [ n ; m u = 6+ bytes
+    if (_buffer.length < 4) return null;
+
+    final sequence = String.fromCharCodes(_buffer);
+
+    // Match pattern: ESC [ digits (;digits)? u
+    final regex = RegExp(r'^\x1B\[(\d+)(?:;(\d+))?u$');
+    final match = regex.firstMatch(sequence);
+    if (match == null) return null;
+
+    final codepoint = int.tryParse(match.group(1)!);
+    if (codepoint == null) return null;
+
+    // Default modifier is 1 (none)
+    final modifierValue = int.tryParse(match.group(2) ?? '1') ?? 1;
+
+    // Parse modifier flags (modifier - 1 gives the actual bitmask)
+    // Bit 0 (1) = Shift, Bit 1 (2) = Alt, Bit 2 (4) = Ctrl, Bit 3 (8) = Meta
+    final modifierBits = modifierValue - 1;
+    final shift = (modifierBits & 1) != 0;
+    final alt = (modifierBits & 2) != 0;
+    final ctrl = (modifierBits & 4) != 0;
+    final meta = (modifierBits & 8) != 0;
+
+    // Map codepoint to LogicalKey
+    LogicalKey? logicalKey;
+    String? character;
+
+    switch (codepoint) {
+      case 13: // Enter/Return
+        logicalKey = LogicalKey.enter;
+        character = '\n';
+        break;
+      case 9: // Tab
+        logicalKey = LogicalKey.tab;
+        character = '\t';
+        break;
+      case 27: // Escape
+        logicalKey = LogicalKey.escape;
+        break;
+      case 127: // Backspace (DEL)
+        logicalKey = LogicalKey.backspace;
+        break;
+      default:
+        // For printable characters, convert codepoint to character
+        if (codepoint >= 32 && codepoint <= 126) {
+          character = String.fromCharCode(codepoint);
+          logicalKey = LogicalKey.fromCharacter(character.toLowerCase()) ??
+              LogicalKey(codepoint, 'unknown');
+        } else if (codepoint > 0) {
+          // Other Unicode characters
+          try {
+            character = String.fromCharCode(codepoint);
+            logicalKey = LogicalKey(codepoint, 'unicode');
+          } catch (e) {
+            return null;
+          }
+        } else {
+          return null;
+        }
+    }
+
+    return KeyboardEvent(
+      logicalKey: logicalKey,
+      character: character,
+      modifiers: ModifierKeys(
+        shift: shift,
+        alt: alt,
+        ctrl: ctrl,
+        meta: meta,
+      ),
+    );
   }
 
   KeyboardEvent? _parseControlChar(int code) {

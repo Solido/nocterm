@@ -92,6 +92,13 @@ class TerminalBinding extends NoctermBinding
     // When enabled, pasted text is wrapped in ESC[200~ ... ESC[201~
     // This allows applications to distinguish pasted text from typed text
     terminal.write(EscapeCodes.enable.bracketedPasteMode);
+
+    // Enable Kitty keyboard protocol (progressive enhancement)
+    // CSI > 1 u - Enables "disambiguate escape codes" mode
+    // This allows detection of Shift+Enter and other modifier combinations
+    // that are otherwise indistinguishable in standard terminal input
+    terminal.write('\x1b[>1u');
+
     terminal.flush();
 
     // Store initial size
@@ -448,6 +455,7 @@ class TerminalBinding extends NoctermBinding
       terminal.backend.writeRaw('\x1B[?1006l'); // Disable SGR mouse mode
       terminal.backend.writeRaw('\x1B[?1002l'); // Disable button event tracking
       terminal.backend.writeRaw('\x1B[?1000l'); // Disable basic mouse tracking
+      terminal.backend.writeRaw('\x1b[<u'); // Disable Kitty keyboard protocol
       terminal.restoreColors(); // Restore terminal colors
       terminal.flush();
 
@@ -696,6 +704,7 @@ class TerminalBinding extends NoctermBinding
       terminal.backend.writeRaw(EscapeCodes.disable.buttonEventTracking);
       terminal.backend.writeRaw(EscapeCodes.disable.basicMouseTracking);
       terminal.backend.writeRaw(EscapeCodes.disable.bracketedPasteMode);
+      terminal.backend.writeRaw('\x1b[<u'); // Disable Kitty keyboard protocol
 
       // Restore terminal (this includes leaving alternate screen)
       terminal.showCursor();

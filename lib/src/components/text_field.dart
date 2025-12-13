@@ -8,6 +8,13 @@ import '../text/text_layout_engine.dart';
 import '../utils/unicode_width.dart';
 import 'text_field/cursor_movement.dart';
 
+/// Represents a single undo/redo entry.
+class UndoEntry {
+  final String text;
+  final TextSelection selection;
+  UndoEntry(this.text, this.selection);
+}
+
 /// Controls the text being edited.
 class TextEditingController {
   TextEditingController({String? text})
@@ -17,6 +24,11 @@ class TextEditingController {
   String _text;
   TextSelection _selection;
   final _listeners = <VoidCallback>[];
+
+  // Undo/redo stacks
+  final List<UndoEntry> _undoStack = [];
+  final List<UndoEntry> _redoStack = [];
+  static const int _maxUndoStackSize = 100;
 
   /// The current text being edited.
   String get text => _text;
@@ -63,6 +75,66 @@ class TextEditingController {
   void dispose() {
     _listeners.clear();
   }
+
+  /// Save the current state to the undo stack.
+  /// Call this BEFORE making modifications.
+  void saveUndoState() {
+    // Don't save duplicate states
+    if (_undoStack.isNotEmpty) {
+      final lastEntry = _undoStack.last;
+      if (lastEntry.text == _text && lastEntry.selection == _selection) {
+        return;
+      }
+    }
+
+    _undoStack.add(UndoEntry(_text, _selection));
+
+    // Limit stack size
+    if (_undoStack.length > _maxUndoStackSize) {
+      _undoStack.removeAt(0);
+    }
+
+    // Clear redo stack when new changes are made
+    _redoStack.clear();
+  }
+
+  /// Undo the last change. Returns true if successful.
+  bool undo() {
+    if (_undoStack.isEmpty) return false;
+
+    // Save current state to redo stack
+    _redoStack.add(UndoEntry(_text, _selection));
+
+    // Restore previous state
+    final entry = _undoStack.removeLast();
+    _text = entry.text;
+    _selection = entry.selection;
+    notifyListeners();
+
+    return true;
+  }
+
+  /// Redo the last undone change. Returns true if successful.
+  bool redo() {
+    if (_redoStack.isEmpty) return false;
+
+    // Save current state to undo stack
+    _undoStack.add(UndoEntry(_text, _selection));
+
+    // Restore redo state
+    final entry = _redoStack.removeLast();
+    _text = entry.text;
+    _selection = entry.selection;
+    notifyListeners();
+
+    return true;
+  }
+
+  /// Check if undo is available.
+  bool get canUndo => _undoStack.isNotEmpty;
+
+  /// Check if redo is available.
+  bool get canRedo => _redoStack.isNotEmpty;
 }
 
 /// Text selection representation.
@@ -186,6 +258,9 @@ class _TextFieldState extends State<TextField> {
 
   // Reference to the render object for cursor movement
   RenderTextField? _renderTextField;
+
+  // Track if the last action was typing for undo grouping
+  bool _lastActionWasTyping = false;
 
   void _handleSelectionChangeFromRenderObject(TextSelection newSelection) {
     setState(() {
@@ -344,16 +419,20 @@ class _TextFieldState extends State<TextField> {
     }
 
     // Handle special keys
-    // Note: Shift+Enter detection doesn't work in most terminals due to input limitations
-    // Most terminals send the same code for Enter and Shift+Enter
-    if (key == LogicalKey.enter && event.isShiftPressed) {
-      // This branch rarely works in real terminals but is kept for compatibility
-      // with test environments and potential future terminal improvements
+    // Shift+Enter / Alt+Enter is detected via:
+    // 1. Kitty keyboard protocol (CSI u sequences) - enabled on startup
+    // 2. ESC+newline fallback - for terminals configured to send this
+    // 3. Alt+Enter - common alternative for inserting newlines
+    if (key == LogicalKey.enter &&
+        (event.isShiftPressed || event.isAltPressed)) {
+      // Insert newline in multi-line fields, submit in single-line
       if (component.maxLines != 1) {
         _insertText('\n');
       }
       return true;
-    } else if (key == LogicalKey.enter && !event.isShiftPressed) {
+    } else if (key == LogicalKey.enter &&
+        !event.isShiftPressed &&
+        !event.isAltPressed) {
       // Enter submits in all fields (both single-line and multi-line)
       component.onEditingComplete?.call();
       component.onSubmitted?.call(_controller.text);
@@ -364,12 +443,53 @@ class _TextFieldState extends State<TextField> {
     } else if (key == LogicalKey.delete) {
       _handleDelete();
       return true;
+      // Ctrl+Shift combinations (most specific - check first)
+    } else if (key == LogicalKey.arrowLeft &&
+        event.isControlPressed &&
+        event.isShiftPressed) {
+      _moveCursorByWord(-1, true); // Select previous word
+      return true;
+    } else if (key == LogicalKey.arrowRight &&
+        event.isControlPressed &&
+        event.isShiftPressed) {
+      _moveCursorByWord(1, true); // Select next word
+      return true;
+    } else if (key == LogicalKey.home &&
+        event.isControlPressed &&
+        event.isShiftPressed) {
+      _selectToDocumentStart();
+      return true;
+    } else if (key == LogicalKey.end &&
+        event.isControlPressed &&
+        event.isShiftPressed) {
+      _selectToDocumentEnd();
+      return true;
+      // Ctrl+Home/End (document navigation without selection)
+    } else if (key == LogicalKey.home &&
+        event.isControlPressed &&
+        !event.isShiftPressed) {
+      _moveCursorToDocumentStart();
+      return true;
+    } else if (key == LogicalKey.end &&
+        event.isControlPressed &&
+        !event.isShiftPressed) {
+      _moveCursorToDocumentEnd();
+      return true;
+      // Shift+Home/End (line selection)
+    } else if (key == LogicalKey.home && event.isShiftPressed) {
+      _selectToLineStart();
+      return true;
+    } else if (key == LogicalKey.end && event.isShiftPressed) {
+      _selectToLineEnd();
+      return true;
+      // Shift+Arrow (character selection)
     } else if (key == LogicalKey.arrowLeft && event.isShiftPressed) {
       _moveCursor(-1, true);
       return true;
     } else if (key == LogicalKey.arrowRight && event.isShiftPressed) {
       _moveCursor(1, true);
       return true;
+      // Ctrl+Arrow (word movement without selection)
     } else if (key == LogicalKey.arrowLeft && event.isControlPressed) {
       _moveCursorByWord(-1, false);
       return true;
@@ -415,6 +535,16 @@ class _TextFieldState extends State<TextField> {
       return true;
     } else if (event.matches(LogicalKey.keyV, ctrl: true)) {
       _paste();
+      return true;
+      // Undo/Redo keybindings
+    } else if (event.matches(LogicalKey.keyZ, ctrl: true, shift: true)) {
+      _redo();
+      return true;
+    } else if (event.matches(LogicalKey.keyZ, ctrl: true)) {
+      _undo();
+      return true;
+    } else if (event.matches(LogicalKey.keyY, ctrl: true)) {
+      _redo();
       return true;
     } else if (key == LogicalKey.backspace && event.isControlPressed) {
       _deleteWordBackward();
@@ -497,6 +627,19 @@ class _TextFieldState extends State<TextField> {
     return null;
   }
 
+  /// Check if a character is a word boundary (space, punctuation, newline)
+  bool _isWordBoundary(String char) {
+    if (char.isEmpty) return false;
+    final codeUnit = char.codeUnitAt(0);
+    // Space, tab, newline, carriage return
+    if (codeUnit == 32 || codeUnit == 9 || codeUnit == 10 || codeUnit == 13) {
+      return true;
+    }
+    // Common punctuation marks
+    final punctuation = '.,;:!?-()[]{}\'"@#\$%^&*+=<>/\\|`~';
+    return punctuation.contains(char[0]);
+  }
+
   void _insertText(String char) {
     final text = _controller.text;
     final selection = _controller.selection;
@@ -532,6 +675,15 @@ class _TextFieldState extends State<TextField> {
       }
     }
 
+    // Handle undo state for typing grouping
+    final isWordBoundary = _isWordBoundary(char);
+    if (!_lastActionWasTyping || isWordBoundary) {
+      // Starting a new typing batch or hitting a word boundary - save undo state
+      _controller.saveUndoState();
+    }
+    // Update typing flag - word boundaries end a typing batch
+    _lastActionWasTyping = !isWordBoundary;
+
     String newText;
     int newOffset;
 
@@ -566,6 +718,10 @@ class _TextFieldState extends State<TextField> {
     final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
     final isCollapsed = clampedStart == clampedEnd;
 
+    // Save undo state before deletion
+    _controller.saveUndoState();
+    _lastActionWasTyping = false;
+
     if (!isCollapsed) {
       // Delete selected text
       _controller.text =
@@ -597,6 +753,10 @@ class _TextFieldState extends State<TextField> {
     final clampedEnd = selection.end.clamp(0, textLength);
     final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
     final isCollapsed = clampedStart == clampedEnd;
+
+    // Save undo state before deletion
+    _controller.saveUndoState();
+    _lastActionWasTyping = false;
 
     if (!isCollapsed) {
       // Delete selected text
@@ -641,6 +801,10 @@ class _TextFieldState extends State<TextField> {
     final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
     final isCollapsed = clampedStart == clampedEnd;
 
+    // Save undo state before deletion
+    _controller.saveUndoState();
+    _lastActionWasTyping = false;
+
     if (!isCollapsed) {
       // Delete selected text
       _controller.text =
@@ -678,6 +842,10 @@ class _TextFieldState extends State<TextField> {
     final clampedEnd = selection.end.clamp(0, textLength);
     final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
     final isCollapsed = clampedStart == clampedEnd;
+
+    // Save undo state before deletion
+    _controller.saveUndoState();
+    _lastActionWasTyping = false;
 
     if (!isCollapsed) {
       // Delete selected text
@@ -761,6 +929,68 @@ class _TextFieldState extends State<TextField> {
     _renderTextField?.resetTargetColumn();
   }
 
+  // New selection helper methods
+  void _selectToLineStart() {
+    _renderTextField?.moveCursorToLineStart(true); // true = extend selection
+  }
+
+  void _selectToLineEnd() {
+    _renderTextField?.moveCursorToLineEnd(true);
+  }
+
+  void _moveCursorToDocumentStart() {
+    // Commit typing batch if applicable
+    if (_lastActionWasTyping) {
+      _controller.saveUndoState();
+      _lastActionWasTyping = false;
+    }
+    _controller.selection = const TextSelection.collapsed(offset: 0);
+    _renderTextField?.resetTargetColumn();
+  }
+
+  void _moveCursorToDocumentEnd() {
+    // Commit typing batch if applicable
+    if (_lastActionWasTyping) {
+      _controller.saveUndoState();
+      _lastActionWasTyping = false;
+    }
+    _controller.selection =
+        TextSelection.collapsed(offset: _controller.text.length);
+    _renderTextField?.resetTargetColumn();
+  }
+
+  void _selectToDocumentStart() {
+    final selection = _controller.selection;
+    _controller.selection = TextSelection(
+      baseOffset: selection.baseOffset,
+      extentOffset: 0,
+    );
+    _renderTextField?.resetTargetColumn();
+  }
+
+  void _selectToDocumentEnd() {
+    final selection = _controller.selection;
+    _controller.selection = TextSelection(
+      baseOffset: selection.baseOffset,
+      extentOffset: _controller.text.length,
+    );
+    _renderTextField?.resetTargetColumn();
+  }
+
+  void _undo() {
+    if (_controller.undo()) {
+      _renderTextField?.resetTargetColumn();
+      _lastActionWasTyping = false;
+    }
+  }
+
+  void _redo() {
+    if (_controller.redo()) {
+      _renderTextField?.resetTargetColumn();
+      _lastActionWasTyping = false;
+    }
+  }
+
   void _selectAll() {
     _controller.selection = TextSelection(
       baseOffset: 0,
@@ -803,6 +1033,10 @@ class _TextFieldState extends State<TextField> {
         // Copy to clipboard using OSC 52
         ClipboardManager.copy(selectedText);
 
+        // Save undo state before cut
+        _controller.saveUndoState();
+        _lastActionWasTyping = false;
+
         // Delete the selected text
         _controller.text =
             text.substring(0, clampedStart) + text.substring(clampedEnd);
@@ -832,9 +1066,63 @@ class _TextFieldState extends State<TextField> {
       // If callback returns true, the paste was handled externally - skip default insertion
       final handled = component.onPaste?.call(clipboardText) ?? false;
       if (!handled) {
-        _insertText(clipboardText);
+        // Save undo state before paste
+        _controller.saveUndoState();
+        _lastActionWasTyping = false;
+        _insertTextWithoutUndo(clipboardText);
       }
     }
+  }
+
+  /// Insert text without saving undo state (for paste which already saved it)
+  void _insertTextWithoutUndo(String char) {
+    final text = _controller.text;
+    final selection = _controller.selection;
+
+    final textLength = text.length;
+    final clampedStart = selection.start.clamp(0, textLength);
+    final clampedEnd = selection.end.clamp(0, textLength);
+    final clampedExtentOffset = selection.extentOffset.clamp(0, textLength);
+    final isCollapsed = clampedStart == clampedEnd;
+
+    if (component.maxLength != null) {
+      final currentLength = text.characters.length;
+      final insertLength = char.characters.length;
+      final deleteLength = isCollapsed ? 0 : (clampedEnd - clampedStart);
+
+      if (currentLength - deleteLength + insertLength > component.maxLength!) {
+        return;
+      }
+    }
+
+    if (component.maxLines != null &&
+        component.maxLines! > 1 &&
+        char.contains('\n')) {
+      final currentLines = text.split('\n').length;
+      final newLines = char.split('\n').length - 1;
+
+      if (currentLines + newLines > component.maxLines!) {
+        return;
+      }
+    }
+
+    String newText;
+    int newOffset;
+
+    if (!isCollapsed) {
+      newText =
+          text.substring(0, clampedStart) + char + text.substring(clampedEnd);
+      newOffset = clampedStart + char.length;
+    } else {
+      newText = text.substring(0, clampedExtentOffset) +
+          char +
+          text.substring(clampedExtentOffset);
+      newOffset = clampedExtentOffset + char.length;
+    }
+
+    _controller.text = newText;
+    _controller.selection = TextSelection.collapsed(offset: newOffset);
+    _renderTextField?.resetTargetColumn();
   }
 
   @override
