@@ -127,31 +127,20 @@ class MarkdownStyleSheet {
   /// Creates a default style sheet for terminal display.
   factory MarkdownStyleSheet.terminal() {
     return MarkdownStyleSheet(
-      h1Style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.cyan,
-      ),
-      h2Style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.blue,
-      ),
+      h1Style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyan),
+      h2Style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
       h3Style: const TextStyle(
         fontWeight: FontWeight.bold,
         color: Colors.green,
       ),
-      h4Style: const TextStyle(
-        fontWeight: FontWeight.bold,
-      ),
-      h5Style: const TextStyle(
-        fontWeight: FontWeight.bold,
-      ),
-      h6Style: const TextStyle(
-        fontWeight: FontWeight.bold,
-      ),
+      h4Style: const TextStyle(fontWeight: FontWeight.bold),
+      h5Style: const TextStyle(fontWeight: FontWeight.bold),
+      h6Style: const TextStyle(fontWeight: FontWeight.bold),
       boldStyle: const TextStyle(fontWeight: FontWeight.bold),
       italicStyle: const TextStyle(fontStyle: FontStyle.italic),
-      strikethroughStyle:
-          const TextStyle(decoration: TextDecoration.lineThrough),
+      strikethroughStyle: const TextStyle(
+        decoration: TextDecoration.lineThrough,
+      ),
       codeStyle: const TextStyle(
         color: Colors.yellow,
         backgroundColor: Colors.black,
@@ -251,8 +240,8 @@ class _MarkdownVisitor {
         final style = element.tag == 'h4'
             ? styleSheet.h4Style
             : element.tag == 'h5'
-                ? styleSheet.h5Style
-                : styleSheet.h6Style;
+            ? styleSheet.h5Style
+            : styleSheet.h6Style;
         return TextSpan(
           children: [
             ...visitChildren(element),
@@ -287,16 +276,13 @@ class _MarkdownVisitor {
           style: styleSheet.strikethroughStyle,
         );
       case 'code':
-        return TextSpan(
-          text: element.textContent,
-          style: styleSheet.codeStyle,
-        );
+        return TextSpan(text: element.textContent, style: styleSheet.codeStyle);
       case 'pre':
         // Code block
         final codeElement =
             element.children != null && element.children!.isNotEmpty
-                ? element.children!.first
-                : null;
+            ? element.children!.first
+            : null;
         final code = codeElement?.textContent ?? element.textContent;
         return TextSpan(
           children: [
@@ -321,11 +307,12 @@ class _MarkdownVisitor {
           children: [
             TextSpan(text: text, style: styleSheet.linkStyle),
             TextSpan(
-                text: ' [$href]',
-                style: styleSheet.linkStyle?.copyWith(
-                  fontWeight: FontWeight.normal,
-                  decoration: TextDecoration.none,
-                )),
+              text: ' [$href]',
+              style: styleSheet.linkStyle?.copyWith(
+                fontWeight: FontWeight.normal,
+                decoration: TextDecoration.none,
+              ),
+            ),
           ],
         );
       case 'img':
@@ -340,10 +327,12 @@ class _MarkdownVisitor {
         // Note: Ordered list numbering is not yet implemented
         final children = visitChildren(element);
         _listDepth--;
-        return TextSpan(children: [
-          ...children,
-          if (_listDepth == 0) const TextSpan(text: '\n'),
-        ]);
+        return TextSpan(
+          children: [
+            ...children,
+            if (_listDepth == 0) const TextSpan(text: '\n'),
+          ],
+        );
       case 'li':
         final indent = '  ' * _listDepth;
         // Using unordered list bullet style for now

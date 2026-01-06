@@ -129,12 +129,14 @@ mixin SchedulerBinding on NoctermBinding {
       try {
         callback(timing);
       } catch (e, stack) {
-        NoctermError.reportError(NoctermErrorDetails(
-          exception: e,
-          stack: stack,
-          library: 'nocterm scheduler',
-          context: 'during frame timing callback',
-        ));
+        NoctermError.reportError(
+          NoctermErrorDetails(
+            exception: e,
+            stack: stack,
+            library: 'nocterm scheduler',
+            context: 'during frame timing callback',
+          ),
+        );
       }
     }
   }
@@ -191,8 +193,10 @@ mixin SchedulerBinding on NoctermBinding {
     String? debugLabel,
   }) {
     final int id = _nextFrameCallbackId++;
-    _transientCallbacks[id] =
-        _FrameCallbackEntry(callback, debugLabel: debugLabel);
+    _transientCallbacks[id] = _FrameCallbackEntry(
+      callback,
+      debugLabel: debugLabel,
+    );
     if (!rescheduling) {
       scheduleFrame();
     }
@@ -329,8 +333,9 @@ mixin SchedulerBinding on NoctermBinding {
   @protected
   void executeFrame() {
     _lastFrameTime = DateTime.now();
-    final timeStamp =
-        Duration(microseconds: _lastFrameTime!.microsecondsSinceEpoch);
+    final timeStamp = Duration(
+      microseconds: _lastFrameTime!.microsecondsSinceEpoch,
+    );
     handleBeginFrame(timeStamp);
   }
 
@@ -382,8 +387,9 @@ mixin SchedulerBinding on NoctermBinding {
       // Phase 1: Transient callbacks (animations)
       NoctermTimeline.startSync('Animate');
       _schedulerPhase = SchedulerPhase.transientCallbacks;
-      final localTransientCallbacks =
-          Map<int, _FrameCallbackEntry>.of(_transientCallbacks);
+      final localTransientCallbacks = Map<int, _FrameCallbackEntry>.of(
+        _transientCallbacks,
+      );
       for (final entry in localTransientCallbacks.values) {
         if (!entry.cancelled) {
           _invokeFrameCallback(
@@ -444,8 +450,9 @@ mixin SchedulerBinding on NoctermBinding {
 
       // Phase 4: Post-frame callbacks
       _schedulerPhase = SchedulerPhase.postFrameCallbacks;
-      final localPostFrameCallbacks =
-          Queue<FrameCallback>.of(_postFrameCallbacks);
+      final localPostFrameCallbacks = Queue<FrameCallback>.of(
+        _postFrameCallbacks,
+      );
       _postFrameCallbacks.clear();
       for (final callback in localPostFrameCallbacks) {
         _invokeFrameCallback(callback, _currentFrameTimeStamp!);
@@ -460,7 +467,8 @@ mixin SchedulerBinding on NoctermBinding {
         final timing = FrameTiming(
           frameNumber: _frameNumber,
           buildDuration: Duration(
-              microseconds: buildEnd - frameStart.microsecondsSinceEpoch),
+            microseconds: buildEnd - frameStart.microsecondsSinceEpoch,
+          ),
           layoutDuration: Duration(microseconds: layoutEnd - buildEnd),
           paintDuration: Duration(microseconds: paintEnd - layoutEnd),
           compositingDuration:
@@ -486,13 +494,15 @@ mixin SchedulerBinding on NoctermBinding {
     try {
       callback(timeStamp);
     } catch (exception, stack) {
-      NoctermError.reportError(NoctermErrorDetails(
-        exception: exception,
-        stack: stack,
-        library: 'nocterm scheduler',
-        context:
-            'during frame callback${debugLabel != null ? ' ($debugLabel)' : ''}',
-      ));
+      NoctermError.reportError(
+        NoctermErrorDetails(
+          exception: exception,
+          stack: stack,
+          library: 'nocterm scheduler',
+          context:
+              'during frame callback${debugLabel != null ? ' ($debugLabel)' : ''}',
+        ),
+      );
     }
   }
 

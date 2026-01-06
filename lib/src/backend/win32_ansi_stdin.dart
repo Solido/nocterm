@@ -26,8 +26,8 @@ class Win32AnsiStdin extends Stream<List<int>> implements Stdin {
   }
 
   Win32AnsiStdin._create()
-      : _inputHandle = _getStdHandle(_STD_INPUT_HANDLE),
-        _originalConsoleMode = _getConsoleMode() {
+    : _inputHandle = _getStdHandle(_STD_INPUT_HANDLE),
+      _originalConsoleMode = _getConsoleMode() {
     _configureConsoleMode();
   }
 
@@ -44,7 +44,8 @@ class Win32AnsiStdin extends Stream<List<int>> implements Stdin {
 
   void _configureConsoleMode() {
     // Enable mouse input, extended flags, and disable quick edit mode
-    final newMode = _ENABLE_EXTENDED_FLAGS |
+    final newMode =
+        _ENABLE_EXTENDED_FLAGS |
         (_originalConsoleMode & ~_ENABLE_QUICK_EDIT_MODE) |
         _ENABLE_MOUSE_INPUT;
     _SetConsoleMode(_inputHandle, newMode);
@@ -69,8 +70,12 @@ class Win32AnsiStdin extends Stream<List<int>> implements Stdin {
         if (!_running) break;
 
         // Read one input event
-        final result =
-            _ReadConsoleInputW(_inputHandle, pInputRecord, 1, pEventsRead);
+        final result = _ReadConsoleInputW(
+          _inputHandle,
+          pInputRecord,
+          1,
+          pEventsRead,
+        );
         if (result != 0 && pEventsRead.value > 0) {
           _translateAndFire(pInputRecord.ref);
         }
@@ -107,9 +112,11 @@ class Win32AnsiStdin extends Stream<List<int>> implements Stdin {
     final char = keyEvent.uChar;
     final controlKeyState = keyEvent.dwControlKeyState;
 
-    final ctrlPressed = (controlKeyState & _LEFT_CTRL_PRESSED) != 0 ||
+    final ctrlPressed =
+        (controlKeyState & _LEFT_CTRL_PRESSED) != 0 ||
         (controlKeyState & _RIGHT_CTRL_PRESSED) != 0;
-    final altPressed = (controlKeyState & _LEFT_ALT_PRESSED) != 0 ||
+    final altPressed =
+        (controlKeyState & _LEFT_ALT_PRESSED) != 0 ||
         (controlKeyState & _RIGHT_ALT_PRESSED) != 0;
     final shiftPressed = (controlKeyState & _SHIFT_PRESSED) != 0;
 
@@ -121,7 +128,10 @@ class Win32AnsiStdin extends Stream<List<int>> implements Stdin {
     if (ctrlPressed) modifierCode += 4;
 
     // Ctrl+A-Z → ASCII 1-26
-    if (ctrlPressed && !altPressed && virtualKeyCode >= 0x41 && virtualKeyCode <= 0x5A) {
+    if (ctrlPressed &&
+        !altPressed &&
+        virtualKeyCode >= 0x41 &&
+        virtualKeyCode <= 0x5A) {
       return [virtualKeyCode - 0x40];
     }
 
@@ -130,29 +140,71 @@ class Win32AnsiStdin extends Stream<List<int>> implements Stdin {
       // Arrow keys
       case _VK_UP:
         return modifierCode > 1
-            ? [0x1b, 0x5b, 0x31, 0x3b, ...modifierCode.toString().codeUnits, 0x41]
+            ? [
+                0x1b,
+                0x5b,
+                0x31,
+                0x3b,
+                ...modifierCode.toString().codeUnits,
+                0x41,
+              ]
             : [0x1b, 0x5b, 0x41]; // ESC [ A
       case _VK_DOWN:
         return modifierCode > 1
-            ? [0x1b, 0x5b, 0x31, 0x3b, ...modifierCode.toString().codeUnits, 0x42]
+            ? [
+                0x1b,
+                0x5b,
+                0x31,
+                0x3b,
+                ...modifierCode.toString().codeUnits,
+                0x42,
+              ]
             : [0x1b, 0x5b, 0x42]; // ESC [ B
       case _VK_RIGHT:
         return modifierCode > 1
-            ? [0x1b, 0x5b, 0x31, 0x3b, ...modifierCode.toString().codeUnits, 0x43]
+            ? [
+                0x1b,
+                0x5b,
+                0x31,
+                0x3b,
+                ...modifierCode.toString().codeUnits,
+                0x43,
+              ]
             : [0x1b, 0x5b, 0x43]; // ESC [ C
       case _VK_LEFT:
         return modifierCode > 1
-            ? [0x1b, 0x5b, 0x31, 0x3b, ...modifierCode.toString().codeUnits, 0x44]
+            ? [
+                0x1b,
+                0x5b,
+                0x31,
+                0x3b,
+                ...modifierCode.toString().codeUnits,
+                0x44,
+              ]
             : [0x1b, 0x5b, 0x44]; // ESC [ D
 
       // Navigation keys
       case _VK_HOME:
         return modifierCode > 1
-            ? [0x1b, 0x5b, 0x31, 0x3b, ...modifierCode.toString().codeUnits, 0x48]
+            ? [
+                0x1b,
+                0x5b,
+                0x31,
+                0x3b,
+                ...modifierCode.toString().codeUnits,
+                0x48,
+              ]
             : [0x1b, 0x5b, 0x48]; // ESC [ H
       case _VK_END:
         return modifierCode > 1
-            ? [0x1b, 0x5b, 0x31, 0x3b, ...modifierCode.toString().codeUnits, 0x46]
+            ? [
+                0x1b,
+                0x5b,
+                0x31,
+                0x3b,
+                ...modifierCode.toString().codeUnits,
+                0x46,
+              ]
             : [0x1b, 0x5b, 0x46]; // ESC [ F
       case _VK_INSERT:
         return [0x1b, 0x5b, 0x32, 0x7e]; // ESC [ 2 ~
@@ -320,8 +372,10 @@ class Win32AnsiStdin extends Stream<List<int>> implements Stdin {
   int readByteSync() => stdin.readByteSync();
 
   @override
-  String? readLineSync({Encoding encoding = systemEncoding, bool retainNewlines = false}) =>
-      stdin.readLineSync(encoding: encoding, retainNewlines: retainNewlines);
+  String? readLineSync({
+    Encoding encoding = systemEncoding,
+    bool retainNewlines = false,
+  }) => stdin.readLineSync(encoding: encoding, retainNewlines: retainNewlines);
 
   @override
   bool get echoNewlineMode => stdin.echoNewlineMode;
@@ -435,33 +489,46 @@ final class _INPUT_RECORD extends Struct {
 typedef _GetStdHandleNative = IntPtr Function(Uint32 nStdHandle);
 typedef _GetStdHandleDart = int Function(int nStdHandle);
 
-typedef _GetConsoleModeNative = Int32 Function(IntPtr hConsoleHandle, Pointer<Uint32> lpMode);
-typedef _GetConsoleModeDart = int Function(int hConsoleHandle, Pointer<Uint32> lpMode);
+typedef _GetConsoleModeNative =
+    Int32 Function(IntPtr hConsoleHandle, Pointer<Uint32> lpMode);
+typedef _GetConsoleModeDart =
+    int Function(int hConsoleHandle, Pointer<Uint32> lpMode);
 
-typedef _SetConsoleModeNative = Int32 Function(IntPtr hConsoleHandle, Uint32 dwMode);
+typedef _SetConsoleModeNative =
+    Int32 Function(IntPtr hConsoleHandle, Uint32 dwMode);
 typedef _SetConsoleModeDart = int Function(int hConsoleHandle, int dwMode);
 
-typedef _ReadConsoleInputNative = Int32 Function(
-    IntPtr hConsoleInput,
-    Pointer<_INPUT_RECORD> lpBuffer,
-    Uint32 nLength,
-    Pointer<Uint32> lpNumberOfEventsRead);
-typedef _ReadConsoleInputDart = int Function(
-    int hConsoleInput,
-    Pointer<_INPUT_RECORD> lpBuffer,
-    int nLength,
-    Pointer<Uint32> lpNumberOfEventsRead);
+typedef _ReadConsoleInputNative =
+    Int32 Function(
+      IntPtr hConsoleInput,
+      Pointer<_INPUT_RECORD> lpBuffer,
+      Uint32 nLength,
+      Pointer<Uint32> lpNumberOfEventsRead,
+    );
+typedef _ReadConsoleInputDart =
+    int Function(
+      int hConsoleInput,
+      Pointer<_INPUT_RECORD> lpBuffer,
+      int nLength,
+      Pointer<Uint32> lpNumberOfEventsRead,
+    );
 
 final _kernel32 = DynamicLibrary.open('kernel32.dll');
 
-final _getStdHandle =
-    _kernel32.lookupFunction<_GetStdHandleNative, _GetStdHandleDart>('GetStdHandle');
+final _getStdHandle = _kernel32
+    .lookupFunction<_GetStdHandleNative, _GetStdHandleDart>('GetStdHandle');
 
-final _GetConsoleMode =
-    _kernel32.lookupFunction<_GetConsoleModeNative, _GetConsoleModeDart>('GetConsoleMode');
+final _GetConsoleMode = _kernel32
+    .lookupFunction<_GetConsoleModeNative, _GetConsoleModeDart>(
+      'GetConsoleMode',
+    );
 
-final _SetConsoleMode =
-    _kernel32.lookupFunction<_SetConsoleModeNative, _SetConsoleModeDart>('SetConsoleMode');
+final _SetConsoleMode = _kernel32
+    .lookupFunction<_SetConsoleModeNative, _SetConsoleModeDart>(
+      'SetConsoleMode',
+    );
 
-final _ReadConsoleInputW =
-    _kernel32.lookupFunction<_ReadConsoleInputNative, _ReadConsoleInputDart>('ReadConsoleInputW');
+final _ReadConsoleInputW = _kernel32
+    .lookupFunction<_ReadConsoleInputNative, _ReadConsoleInputDart>(
+      'ReadConsoleInputW',
+    );
