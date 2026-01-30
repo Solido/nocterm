@@ -1,0 +1,165 @@
+{
+  "metadata": {
+    "timestamp": "2026-01-30T18:30:00Z",
+    "description": "Frame time measurements using headless terminal runtime",
+    "methodology": "Apps run in headless PTY with programmatic input, timing events captured from stderr",
+    "terminalSize": {
+      "cols": 80,
+      "rows": 24
+    }
+  },
+  "counter": {
+    "nocterm": {
+      "firstFrameMs": 0.814,
+      "frameTimes": {
+        "samples": 20,
+        "description": "Time from keypress to screen update (state_change events)",
+        "note": "Nocterm emits state_change timestamps, measuring time since app start"
+      },
+      "inputResponse": {
+        "description": "All 20 keypresses processed and rendered",
+        "verified": true
+      }
+    },
+    "ink": {
+      "firstFrameMs": 10.192,
+      "frameTimes": {
+        "samples": 19,
+        "rawMs": [2.32, 1.63, 1.19, 1.09, 0.88, 0.85, 1.08, 1.11, 1.09, 1.03, 1.01, 1.85, 0.87, 0.74, 0.71, 0.86, 0.92, 0.79, 0.79],
+        "meanMs": 1.09,
+        "minMs": 0.71,
+        "maxMs": 2.32,
+        "p50Ms": 0.92,
+        "p95Ms": 1.85
+      },
+      "memory": {
+        "heapUsedMb": 19.1,
+        "rssMb": 107.5
+      }
+    },
+    "comparison": {
+      "firstFrameSpeedup": "12.5x",
+      "note": "Nocterm starts rendering 12.5x faster"
+    }
+  },
+  "scrolling_list": {
+    "nocterm": {
+      "firstFrameMs": 0.565,
+      "scrollEvents": {
+        "samples": 20,
+        "description": "Arrow key scroll events processed",
+        "verified": true
+      },
+      "features": {
+        "virtualization": true,
+        "itemCount": 1000,
+        "visibleCount": 20
+      }
+    },
+    "ink": {
+      "firstFrameMs": 10.0,
+      "frameTimes": {
+        "samples": 20,
+        "meanMs": 2.18,
+        "description": "Frame render time per scroll event"
+      },
+      "memory": {
+        "heapUsedMb": 22.1,
+        "rssMb": 101.2
+      },
+      "features": {
+        "virtualization": true,
+        "itemCount": 1000,
+        "visibleCount": 20
+      }
+    },
+    "comparison": {
+      "firstFrameSpeedup": "17.7x",
+      "note": "Both frameworks use virtualization for large lists"
+    }
+  },
+  "dashboard": {
+    "description": "Animated dashboard with progress bars, metrics, and scrolling log. Updates at 100ms intervals (~10 FPS target).",
+    "nocterm": {
+      "firstFrameMs": 0.5,
+      "animation": {
+        "targetIntervalMs": 100,
+        "actualIntervalMs": 100,
+        "framesObserved": 136,
+        "jitter": "minimal"
+      },
+      "features": {
+        "progressBars": 5,
+        "metricsUpdating": 4,
+        "scrollingLog": true
+      }
+    },
+    "ink": {
+      "firstFrameMs": 13.85,
+      "animation": {
+        "targetIntervalMs": 100,
+        "actualIntervalMsRange": [100.0, 112.5],
+        "meanIntervalMs": 101.1,
+        "framesObserved": 21
+      },
+      "memory": {
+        "heapUsedMb": 18.3,
+        "rssMb": 92.8
+      },
+      "features": {
+        "progressBars": 5,
+        "metricsUpdating": 3,
+        "scrollingLog": true
+      }
+    },
+    "comparison": {
+      "firstFrameSpeedup": "27.7x",
+      "animationTiming": "Both frameworks maintain ~100ms animation interval accurately",
+      "note": "Dashboard tests complex UI with multiple simultaneous updates"
+    }
+  },
+  "summary": {
+    "firstFrameTimes": {
+      "counter": {
+        "nocterm": 0.814,
+        "ink": 10.192,
+        "speedup": "12.5x"
+      },
+      "scrollingList": {
+        "nocterm": 0.565,
+        "ink": 10.0,
+        "speedup": "17.7x"
+      },
+      "dashboard": {
+        "nocterm": 0.5,
+        "ink": 13.85,
+        "speedup": "27.7x"
+      }
+    },
+    "averageFirstFrameSpeedup": "19.3x",
+    "interactiveFrameTimes": {
+      "ink": {
+        "counterMeanMs": 1.09,
+        "scrollMeanMs": 2.18
+      },
+      "nocterm": {
+        "note": "Nocterm frame times not directly comparable - emits timestamps since app start rather than per-frame durations"
+      }
+    },
+    "memoryUsage": {
+      "ink": {
+        "heapMeanMb": 19.8,
+        "rssMeanMb": 100.5
+      },
+      "nocterm": {
+        "note": "Memory metrics not captured in this benchmark run"
+      }
+    },
+    "conclusions": [
+      "Nocterm achieves 12-28x faster first frame rendering",
+      "Both frameworks handle interactive input smoothly",
+      "Both frameworks maintain accurate animation timing (~100ms intervals)",
+      "Ink uses ~100MB RSS memory vs Nocterm's compiled binary approach"
+    ]
+  }
+}
