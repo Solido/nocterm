@@ -1,0 +1,11 @@
+{
+    "runIndex": 2,
+    "startup": {
+        "firstFrameUs": 12461,
+        "processStartToReadyUs": 12461
+    },
+    "memory": {
+        "heapUsedMb": 15.9854736328125,
+        "peakMb": 91.96875
+    }
+}

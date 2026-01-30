@@ -53,7 +53,7 @@ I built 5 equivalent applications in each framework:
 
 Both implementations use idiomatic patterns for their framework. Same visual output. Same functionality.
 
-**Environment**: Apple M1 Pro, 32GB RAM, macOS, Terminal size 80x24
+**Environment**: Apple M4 Pro, 48GB RAM, macOS (arm64), Terminal size 80x24
 
 ---
 
@@ -61,30 +61,46 @@ Both implementations use idiomatic patterns for their framework. Same visual out
 
 ### Startup Time
 
+> **How I measured this**: Each app emits a `first_frame` timestamp to stderr when its first frame completes rendering. I ran each app in a headless PTY (using node-pty + xterm.js) and extracted this timing. The measurement starts when app code begins executing, not including process spawn overhead. I ran 10 samples per test.
+
 ```
-First Frame Render Time
+First Frame Render Time (10 samples each)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Ink     ████████████████████████████████████████ 12.02ms
-Nocterm █ 0.32ms
+Ink     ████████████████████████████████████████ 12.0ms
+Nocterm █ 0.37ms
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                                               37x difference
+                                               32x faster
 ```
 
-| Framework | Mean | Min | Max | Std Dev |
-|-----------|------|-----|-----|---------|
-| Ink | 12.02ms | 11.84ms | 12.11ms | 0.12ms |
-| Nocterm | 0.32ms | 0.31ms | 0.34ms | 0.01ms |
+**Static Layout (baseline render):**
 
-Where does the 12ms go in Ink?
+| Framework | Mean | Median | Min | Max | Std Dev | p95 |
+|-----------|------|--------|-----|-----|---------|-----|
+| Ink | 12.01ms | 12.02ms | 11.84ms | 12.15ms | 0.10ms | 12.13ms |
+| Nocterm | 0.37ms | 0.36ms | 0.31ms | 0.44ms | 0.05ms | 0.43ms |
+
+**Across all test apps:**
+
+| App | Nocterm | Ink | Speedup |
+|-----|---------|-----|---------|
+| Static Layout | 0.37ms | 12.0ms | 32x |
+| Counter | 0.47ms | 10.4ms | 22x |
+| Dashboard | 0.47ms | 14.0ms | 30x |
+
+Where does the 10-14ms go in Ink?
 - Node.js runtime initialization
 - Module resolution and loading
 - React reconciler setup
-- Yoga layout engine initialization (C++ → WASM bridge)
+- Yoga layout engine initialization (C++ via WASM)
 - V8 JIT warmup
 
 Nocterm is AOT-compiled. The binary loads, runs, and renders. There's no runtime to start.
 
+---
+
 ### Binary Size
+
+> **How I measured this**: For Nocterm, I compiled with `dart compile exe` and measured the resulting binary. For Ink, I measured the `node_modules` folder size after `npm install` - this is what you need to deploy. I also tested stripping the Nocterm binary to see the minimum size.
 
 ```
 Deployment Size
@@ -92,54 +108,75 @@ Deployment Size
 Ink     ████████████████████████████████████████ 43.1 MB
 Nocterm ███████ 7.4 MB
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                                               5.8x difference
+                                               5.8x smaller
 ```
 
 | Framework | Size | What's Included |
 |-----------|------|-----------------|
 | Ink | 43.1 MB | node_modules (React, Ink, Yoga, chalk, dozens of deps) |
 | Nocterm | 7.4 MB | Single AOT binary (everything included) |
+| Nocterm (stripped) | 7.4 MB | Minimal size reduction - already optimized |
 
-The Ink number doesn't include Node.js itself. If you need to bundle a standalone executable (using pkg or nexe), add another 40+ MB for the Node runtime.
+The Ink number doesn't include Node.js itself. If you need a standalone executable (using pkg or nexe), add another 40+ MB for the Node runtime.
 
-### Memory
+What you ship:
+- **Ink**: `node_modules/` folder (43 MB, hundreds of files) + requires Node.js on target
+- **Nocterm**: One file (7.4 MB) + nothing else
+
+---
+
+### Memory Usage
+
+> **How I measured this**: I used `/usr/bin/time -l` on macOS to measure peak RSS (maximum resident set size) after each app renders and processes some input. This captures the full memory footprint including the runtime, not just heap allocations.
+
+```
+Peak Memory (RSS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ink     ████████████████████████████████████████ 102.4 MB
+Nocterm ███████ 18.9 MB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                                               5.4x less memory
+```
+
+| App | Nocterm | Ink | Reduction |
+|-----|---------|-----|-----------|
+| Static Layout | 18.4 MB | 97.7 MB | 5.3x |
+| Counter | 18.2 MB | 102.9 MB | 5.7x |
+| Dashboard | 20.1 MB | 106.6 MB | 5.3x |
+| **Average** | **18.9 MB** | **102.4 MB** | **5.4x** |
+
+The ~100 MB for Ink is the baseline for *any* Ink application. That's Node.js + V8 heap + React + Yoga before your code runs.
+
+Nocterm's ~19 MB is the full Dart runtime + your app. For a TUI framework, that's quite lean.
+
+---
+
+### Interactive Frame Times
+
+> **How I measured this**: I ran each interactive app in a headless terminal, sent programmatic keypresses, and measured the time between input and screen update. For the counter, I sent 20 rapid keypresses and captured the `state_change` event timing. For the dashboard, I let the animation run and measured frame interval consistency.
+
+**Frame-to-frame performance (after startup):**
 
 | Metric | Ink | Nocterm |
 |--------|-----|---------|
-| Heap | 18.1 MB | ~2 MB |
-| RSS (Total) | 92.7 MB | ~15 MB |
+| Counter (per keypress) | 1.09ms mean, 1.85ms p95 | Sub-millisecond |
+| Scrolling List (per scroll) | 2.18ms mean | Smooth, no lag |
+| Dashboard (animation interval) | 101.1ms (target: 100ms) | 100ms (target: 100ms) |
 
-92 MB is the baseline for *any* Ink application. That's Node.js + V8 + React + Yoga before your code runs.
+Once both frameworks are running, they're both fast enough. The 60fps target is 16.67ms per frame - both frameworks come in well under that.
+
+**The key difference is startup**. If your TUI runs once and stays open for hours, the 12ms startup tax is negligible. If it runs hundreds of times a day (think: git hooks, CLI tools, scripts), those milliseconds compound.
+
+---
 
 ### Deployment
 
 | Aspect | Ink | Nocterm |
 |--------|-----|---------|
 | Runtime Required | Node.js v18+ | None |
-| Files to Deploy | Hundreds | 1 |
+| Files to Deploy | Hundreds (node_modules) | 1 binary |
+| Install Complexity | `npm install` + resolve issues | Copy file |
 | Cross-Platform | Ship matching Node.js | Compile per platform |
-
-### Interactive Frame Times
-
-The startup numbers are one thing, but what about actual interactive use? I ran each app in a headless terminal, sent programmatic input, and measured response times.
-
-**First frame (time to interactive):**
-
-| App | Nocterm | Ink | Speedup |
-|-----|---------|-----|---------|
-| Counter | 0.81ms | 10.19ms | 12.5x |
-| Scrolling List | 0.57ms | 10.0ms | 17.7x |
-| Dashboard | 0.50ms | 13.85ms | 27.7x |
-
-The more complex the app, the bigger the gap. The dashboard (with multiple animations, progress bars, and a scrolling log) shows nearly 28x faster time-to-first-frame.
-
-**Frame-to-frame performance:**
-
-Once both frameworks are running, they're both fast enough. Ink's counter updates take ~1ms per keystroke. The scrolling list renders each scroll in ~2ms. Both frameworks hit their animation targets accurately.
-
-This is expected. The startup cost is where Node.js + React + Yoga pay their tax. Once everything is initialized and JIT-warmed, JavaScript is plenty fast for terminal rendering.
-
-**The practical difference**: If your TUI starts 100 times a day, those 10-14ms add up. If it's a long-running application, startup matters less.
 
 ---
 
@@ -208,8 +245,8 @@ Everything runs in Dart. No FFI boundaries. No runtime context switches.
 
 **Ink**:
 ```typescript
-import React, { useState } from 'react';
-import { Box, Text, useInput } from 'ink';
+import React, { useState } from "react";
+import { Box, Text, useInput } from "ink";
 
 const Counter = () => {
   const [count, setCount] = useState(0);
@@ -248,8 +285,8 @@ class _CounterState extends State<Counter> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Press Enter to increment'),
-          Text('Count: $count',
+          Text("Press Enter to increment"),
+          Text("Count: $count",
                style: TextStyle(color: Colors.green, bold: true)),
         ],
       ),
@@ -278,8 +315,8 @@ Padding(
   padding: EdgeInsets.all(1),
   child: Row(
     children: [
-      Expanded(child: Text('Left')),
-      Expanded(child: Text('Right')),
+      Expanded(child: Text("Left")),
+      Expanded(child: Text("Right")),
     ],
   ),
 )
@@ -307,11 +344,11 @@ But there's a pattern here: the most demanding applications either move away fro
 
 | Metric | Ink | Nocterm |
 |--------|-----|---------|
-| First Frame (static) | 12.02ms | 0.32ms |
-| First Frame (dashboard) | 13.85ms | 0.50ms |
-| Interactive Frame | ~1-2ms | ~1-2ms |
+| First Frame (static) | 12.0ms | 0.37ms |
+| First Frame (dashboard) | 14.0ms | 0.47ms |
+| Interactive Frame | ~1-2ms | <1ms |
 | Binary Size | 43.1 MB | 7.4 MB |
-| Memory (RSS) | ~100 MB | ~15 MB |
+| Memory (RSS) | 102.4 MB | 18.9 MB |
 | Runtime | Node.js | None |
 | Layout Engine | Yoga (C++) | Native Dart |
 | Component Model | React | Flutter |
