@@ -1,0 +1,21 @@
+{
+  "name": "ink-benchmark-static-layout",
+  "version": "1.0.0",
+  "description": "Static layout benchmark for Ink TUI framework",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "ink": "^5.0.1",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "@types/react": "^18.3.18",
+    "typescript": "^5.7.3"
+  }
+}

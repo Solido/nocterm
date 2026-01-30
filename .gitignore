@@ -28,3 +28,8 @@ pubspec_overrides.yaml
 
 # Debug logs
 *_debug.log
+
+# Node.js (Ink benchmark apps)
+node_modules/
+dist/
+*.tsbuildinfo
