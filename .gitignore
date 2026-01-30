@@ -16,7 +16,8 @@ CLAUDE.md
 reference/
 coverage/
 
-nocterm
+# Compiled nocterm executable at root
+/nocterm
 
 build/
 
@@ -33,3 +34,10 @@ pubspec_overrides.yaml
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Benchmark compiled binaries
+benchmark/apps/*/nocterm/static_layout
+benchmark/apps/*/nocterm/counter
+benchmark/apps/*/nocterm/scrolling_list
+benchmark/apps/*/nocterm/rapid_input
+benchmark/apps/*/nocterm/dashboard
