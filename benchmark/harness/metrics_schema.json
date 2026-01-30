@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TUI Framework Benchmark Results",
+  "description": "Schema for benchmark results comparing Ink and Nocterm TUI frameworks",
+  "type": "object",
+  "required": ["metadata", "results"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["timestamp", "machine", "terminalSize"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of benchmark run"
+        },
+        "machine": {
+          "type": "object",
+          "properties": {
+            "os": { "type": "string" },
+            "arch": { "type": "string" },
+            "cpuModel": { "type": "string" },
+            "cpuCores": { "type": "integer" },
+            "memoryGb": { "type": "number" },
+            "nodeVersion": { "type": "string" },
+            "dartVersion": { "type": "string" }
+          }
+        },
+        "terminalSize": {
+          "type": "object",
+          "properties": {
+            "cols": { "type": "integer", "default": 80 },
+            "rows": { "type": "integer", "default": 24 }
+          }
+        },
+        "terminalEmulator": { "type": "string" },
+        "runsPerTest": { "type": "integer", "default": 10 }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/testResult"
+      }
+    }
+  },
+  "definitions": {
+    "testResult": {
+      "type": "object",
+      "required": ["framework", "testName", "variant", "runs"],
+      "properties": {
+        "framework": {
+          "type": "string",
+          "enum": ["ink", "nocterm"],
+          "description": "The TUI framework being tested"
+        },
+        "testName": {
+          "type": "string",
+          "enum": ["static_layout", "counter", "scrolling_list", "rapid_input", "dashboard"],
+          "description": "Name of the test application"
+        },
+        "variant": {
+          "type": "string",
+          "description": "Test variant (e.g., 'cold_start', 'warm', '1000_items')"
+        },
+        "binarySize": {
+          "type": "object",
+          "properties": {
+            "bytes": { "type": "integer", "description": "Compiled binary size in bytes" },
+            "bundleSizeBytes": { "type": "integer", "description": "For Ink: node_modules size" }
+          }
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/runResult"
+          }
+        },
+        "statistics": {
+          "$ref": "#/definitions/statistics"
+        }
+      }
+    },
+    "runResult": {
+      "type": "object",
+      "required": ["runIndex"],
+      "properties": {
+        "runIndex": { "type": "integer" },
+        "startup": {
+          "type": "object",
+          "properties": {
+            "processStartToReadyUs": {
+              "type": "integer",
+              "description": "Time from process start to framework ready (microseconds)"
+            },
+            "firstFrameUs": {
+              "type": "integer",
+              "description": "Time to first frame rendered (microseconds)"
+            }
+          }
+        },
+        "frameTimings": {
+          "type": "array",
+          "description": "Array of frame timing measurements",
+          "items": {
+            "$ref": "#/definitions/frameTiming"
+          }
+        },
+        "memory": {
+          "type": "object",
+          "properties": {
+            "baselineMb": { "type": "number", "description": "Memory at startup" },
+            "peakMb": { "type": "number", "description": "Peak memory during test" },
+            "steadyStateMb": { "type": "number", "description": "Memory after warmup" },
+            "heapUsedMb": { "type": "number", "description": "Heap memory used" }
+          }
+        },
+        "diffEfficiency": {
+          "type": "object",
+          "description": "Differential rendering efficiency metrics",
+          "properties": {
+            "totalCells": { "type": "integer", "description": "Total cells in terminal" },
+            "cellsChanged": { "type": "integer", "description": "Cells actually updated" },
+            "cellsSkipped": { "type": "integer", "description": "Cells correctly skipped" },
+            "diffTimeUs": { "type": "integer", "description": "Time spent in diff algorithm" },
+            "bytesWritten": { "type": "integer", "description": "Bytes written to terminal" },
+            "escapeSequences": { "type": "integer", "description": "Number of escape sequences" }
+          }
+        },
+        "inputLatency": {
+          "type": "object",
+          "description": "Input-to-render latency (for rapid_input test)",
+          "properties": {
+            "samples": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "description": "Individual latency measurements in microseconds"
+            }
+          }
+        }
+      }
+    },
+    "frameTiming": {
+      "type": "object",
+      "properties": {
+        "frameIndex": { "type": "integer" },
+        "buildUs": { "type": "integer", "description": "Component tree build time" },
+        "layoutUs": { "type": "integer", "description": "Layout calculation time" },
+        "paintUs": { "type": "integer", "description": "Paint/render time" },
+        "compositeUs": { "type": "integer", "description": "Buffer composition time" },
+        "diffUs": { "type": "integer", "description": "Differential rendering diff time" },
+        "flushUs": { "type": "integer", "description": "Terminal flush time" },
+        "totalUs": { "type": "integer", "description": "Total frame time" }
+      }
+    },
+    "statistics": {
+      "type": "object",
+      "description": "Aggregated statistics across all runs",
+      "properties": {
+        "frameTime": {
+          "$ref": "#/definitions/statBlock",
+          "description": "Frame time statistics in microseconds"
+        },
+        "startupTime": {
+          "$ref": "#/definitions/statBlock",
+          "description": "Startup time statistics in microseconds"
+        },
+        "memory": {
+          "$ref": "#/definitions/statBlock",
+          "description": "Memory usage statistics in MB"
+        },
+        "inputLatency": {
+          "$ref": "#/definitions/statBlock",
+          "description": "Input latency statistics in microseconds"
+        }
+      }
+    },
+    "statBlock": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "mean": { "type": "number" },
+        "median": { "type": "number" },
+        "stdDev": { "type": "number" },
+        "p95": { "type": "number" },
+        "p99": { "type": "number" }
+      }
+    }
+  }
+}
