@@ -1,4 +1,0 @@
-{"event":"first_frame","timeMs":12.103375}
-{"event":"memory","heapUsedMb":18.001541137695312,"heapTotalMb":24.578125,"rssMb":93.734375}
-{"event":"complete","totalTimeMs":113.34025}
-{"event":"memory","heapUsedMb":18.07982635498047,"heapTotalMb":24.578125,"rssMb":93.765625}
