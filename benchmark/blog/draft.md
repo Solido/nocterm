@@ -1,41 +1,10 @@
 # Why I Built a TUI Framework in Dart (And Benchmarked It Against Ink)
 
-Something interesting is happening in terminals. Claude Code, GitHub Copilot, Gemini CLI, Warp, Ghostty - suddenly everyone's building rich terminal interfaces. After years of simple `print()` statements, we're seeing React-style components, animations, and complex layouts right in our terminals.
+Claude Code, GitHub Copilot, Gemini CLI, Warp, Ghostty - in the past year, every major tech company has shipped a rich terminal interface. After years of simple `print()` statements, we're seeing React-style components, animations, and complex layouts right in our terminals.
 
-I've been obsessed with this space. When I started building [Nocterm](https://github.com/your-repo/nocterm), I had a hypothesis: Flutter's rendering architecture - the same engine powering millions of mobile apps - would be perfect for terminals. Not "adapted" for terminals. *Built* for them.
+This trend raises an interesting question: what's the best foundation for building these interfaces? When I started building [Nocterm](https://github.com/nocterm/nocterm), I had a hypothesis: Flutter's rendering architecture—the same engine powering millions of mobile apps—could work beautifully for terminals too.
 
-This post is about that hypothesis. I built equivalent test applications in both Ink (the React-based TUI framework) and Nocterm, then measured everything I could. Here's what I found.
-
----
-
-## Why Dart? Why Flutter's Architecture?
-
-Before the benchmarks, let me explain why I went down this path.
-
-### The Dart Ecosystem is Underrated
-
-Dart has some properties that make it exceptionally well-suited for TUI development:
-
-**AOT Compilation**: Dart compiles to native binaries. No runtime required. Copy a file, run it. That's the entire deployment story.
-
-**Sound Null Safety**: After years of TypeScript's structural typing, Dart's sound type system is refreshing. When the compiler says something isn't null, it actually isn't null.
-
-**Isolates**: Dart's concurrency model is perfect for TUIs. You can run expensive computations without blocking the UI thread - the same pattern that makes Flutter feel smooth.
-
-**The Flutter Ecosystem**: 160k+ GitHub stars. Battle-tested rendering pipeline. Thousands of packages. When you build on Flutter's patterns, you're building on a decade of optimization work.
-
-### Flutter's Three-Tree Architecture
-
-Flutter doesn't just have components. It has three synchronized trees:
-
-```
-Component Tree    →    Element Tree    →    RenderObject Tree
-(what you write)      (lifecycle mgmt)     (layout & paint)
-```
-
-This separation is why Flutter is fast. The Element tree can diff efficiently. The RenderObject tree can skip layout for unchanged subtrees. Dirty tracking happens at the right granularity.
-
-Nocterm implements this same architecture for terminals. When you write a `StatefulComponent`, you get the same lifecycle, the same `setState()`, the same rebuild semantics.
+This post is about that hypothesis. I built equivalent test applications in both Ink (the React-based TUI framework with 34k+ GitHub stars) and Nocterm, then measured everything I could. Here's what I found.
 
 ---
 
@@ -51,7 +20,7 @@ I built 5 equivalent applications in each framework:
 | **Rapid Input** | Keystroke-to-render - how responsive does it feel? |
 | **Dashboard** | Multiple animations, live updates - sustained performance |
 
-Both implementations use idiomatic patterns for their framework. Same visual output. Same functionality.
+Both implementations follow each framework's recommended patterns: React hooks for Ink, StatefulComponents for Nocterm. Same visual output. Same functionality.
 
 **Environment**: Apple M4 Pro, 48GB RAM, macOS (arm64), Terminal size 80x24
 
@@ -69,7 +38,7 @@ First Frame Render Time (10 samples each)
 Ink     ████████████████████████████████████████ 12.0ms
 Nocterm █ 0.37ms
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                                               32x faster
+                                          32x faster startup
 ```
 
 **Static Layout (baseline render):**
@@ -91,37 +60,32 @@ Where does the 10-14ms go in Ink?
 - Node.js runtime initialization
 - Module resolution and loading
 - React reconciler setup
-- Yoga layout engine initialization (C++ via WASM)
+- Yoga layout engine initialization (C++ via native bindings)
 - V8 JIT warmup
 
-Nocterm is AOT-compiled. The binary loads, runs, and renders. There's no runtime to start.
+Nocterm bundles its runtime into the binary via AOT compilation. No separate interpreter needs to start.
 
 ---
 
 ### Binary Size
 
-> **How I measured this**: For Nocterm, I compiled with `dart compile exe` and measured the resulting binary. For Ink, I measured the `node_modules` folder size after `npm install` - this is what you need to deploy. I also tested stripping the Nocterm binary to see the minimum size.
+> **How I measured this**: For Nocterm, I compiled with `dart compile exe`. For Ink, I packaged into a standalone binary with `bun build --compile` - this is the fairest apples-to-apples comparison (both produce single executables with no runtime required).
 
 ```
-Deployment Size
+Standalone Binary Size
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Ink     ████████████████████████████████████████ 43.1 MB
-Nocterm ███████ 7.4 MB
+Ink (Bun)   ████████████████████████████████████████████████████████ 56 MB
+Nocterm     ███████ 7.4 MB
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                                               5.8x smaller
+                                               7.5x smaller
 ```
 
-| Framework | Size | What's Included |
-|-----------|------|-----------------|
-| Ink | 43.1 MB | node_modules (React, Ink, Yoga, chalk, dozens of deps) |
-| Nocterm | 7.4 MB | Single AOT binary (everything included) |
-| Nocterm (stripped) | 7.4 MB | Minimal size reduction - already optimized |
+| Deployment Model | Ink | Nocterm |
+|------------------|-----|---------|
+| Standalone binary | 56 MB (Bun) | 7.4 MB |
+| With runtime | 43 MB (node_modules) + Node.js | N/A (always standalone) |
 
-The Ink number doesn't include Node.js itself. If you need a standalone executable (using pkg or nexe), add another 40+ MB for the Node runtime.
-
-What you ship:
-- **Ink**: `node_modules/` folder (43 MB, hundreds of files) + requires Node.js on target
-- **Nocterm**: One file (7.4 MB) + nothing else
+The 56 MB for Ink includes the entire Bun runtime. The 7.4 MB for Nocterm includes the Dart runtime—Dart's AOT compiler eliminates unused code more aggressively than bundling a JavaScript runtime.
 
 ---
 
@@ -145,7 +109,7 @@ Nocterm ███████ 18.9 MB
 | Dashboard | 20.1 MB | 106.6 MB | 5.3x |
 | **Average** | **18.9 MB** | **102.4 MB** | **5.4x** |
 
-The ~100 MB for Ink is the baseline for *any* Ink application. That's Node.js + V8 heap + React + Yoga before your code runs.
+The ~100 MB baseline for Ink reflects Node.js + V8 + React + Yoga—this is the cost of the runtime stack, before your application code runs.
 
 Nocterm's ~19 MB is the full Dart runtime + your app. For a TUI framework, that's quite lean.
 
@@ -153,29 +117,20 @@ Nocterm's ~19 MB is the full Dart runtime + your app. For a TUI framework, that'
 
 ### Frame Time (Maximum FPS Test)
 
-> **How I measured this**: I disabled frame rate limiting and ran a tight loop triggering state changes as fast as possible for 3 seconds. For Nocterm, I used the built-in `FrameTiming` callback that measures the actual frame pipeline (build + layout + paint + diff + flush). For Ink, I measured time between consecutive renders using `performance.now()`. Both approaches measure "how fast can the framework render?"
+> **How I measured this**: I disabled frame rate limiting and ran a tight loop triggering state changes as fast as possible for 3 seconds. I ran 10 iterations for each framework.
 
-**Maximum throughput (no frame rate limiting):**
+**Result: Ink is ~13% faster at raw rendering.**
 
-| Framework | FPS | Mean Frame Time | Median | p95 |
-|-----------|-----|-----------------|--------|-----|
-| Ink | 8,655 | 115µs | 113µs | 168µs |
-| Nocterm | 7,161 | 137µs | 131µs | 181µs |
+| Framework | Average FPS | Mean Frame Time | Variance |
+|-----------|-------------|-----------------|----------|
+| Ink | 8,193 | 122µs | ±10% across runs |
+| Nocterm | 7,242 | 135µs | ±1% across runs |
 
-**Nocterm frame breakdown:**
-- Build phase: 32µs
-- Layout phase: 31µs
-- Paint phase: 54µs
-- Diff + flush: ~20µs
+Ink wins this benchmark. But here's why it doesn't matter much:
 
-Both frameworks render frames **100x faster than needed for 60fps** (16,667µs target). The difference here is academic - you'll never notice 115µs vs 137µs.
+Both frameworks render frames over 100x faster than needed for 60fps (16,667µs per frame). At 7,000+ FPS, you're not going to see the difference between 122µs and 135µs frames.
 
-What matters more:
-- **Startup time**: Nocterm wins by 32x (0.37ms vs 12ms)
-- **Memory footprint**: Nocterm uses 5.4x less RAM
-- **Deployment**: Single binary vs node_modules
-
-The key difference is startup. If your TUI runs once and stays open for hours, both frameworks are equally smooth. If it runs hundreds of times a day (git hooks, CLI tools, scripts), those startup milliseconds compound.
+What's more interesting is the variance: Nocterm is remarkably consistent (±1%), while Ink varies ±10% run-to-run—likely due to Node.js JIT warmup and garbage collection. For long-running applications like animated dashboards, this consistency might matter more than raw speed. For typical TUIs (forms, menus, editors), both are more than fast enough.
 
 ---
 
@@ -183,10 +138,10 @@ The key difference is startup. If your TUI runs once and stays open for hours, b
 
 | Aspect | Ink | Nocterm |
 |--------|-----|---------|
-| Runtime Required | Node.js v18+ | None |
-| Files to Deploy | Hundreds (node_modules) | 1 binary |
-| Install Complexity | `npm install` + resolve issues | Copy file |
-| Cross-Platform | Ship matching Node.js | Compile per platform |
+| Runtime Required | Node.js v18+ (widely installed) | None (self-contained) |
+| Distribution | npm package or Bun standalone | Single binary per OS/arch |
+| Install | `npm install` | Copy file |
+| Cross-Platform | Node.js handles it | Compile for each target |
 
 ---
 
@@ -217,7 +172,7 @@ The key difference is startup. If your TUI runs once and stays open for hours, b
 └─────────────────────────────────────────────────────────┘
 ```
 
-Every state change crosses the JS-to-WASM boundary for Yoga layout calculations. That's an FFI call per layout node.
+Every state change crosses the JavaScript-to-native boundary for Yoga layout calculations—an FFI call for each layout node.
 
 ### Nocterm's Stack
 
@@ -245,7 +200,25 @@ Every state change crosses the JS-to-WASM boundary for Yoga layout calculations.
 └─────────────────────────────────────────────────────────┘
 ```
 
-Everything runs in Dart. No FFI boundaries. No runtime context switches.
+Everything runs in Dart. No FFI boundaries to cross.
+
+### Why Flutter's Three-Tree Architecture?
+
+Flutter uses three synchronized trees:
+
+```
+Widget Tree       →    Element Tree    →    RenderObject Tree
+(what you write)      (lifecycle mgmt)     (layout & paint)
+```
+
+*(Flutter calls these "Widgets"; Nocterm uses "Components" - same concept.)*
+
+This separation is why Nocterm can be fast despite being newer:
+- The Element tree diffs efficiently (like React's reconciler)
+- The RenderObject tree skips layout for unchanged subtrees
+- Dirty tracking happens at the right granularity
+
+When you write a `StatefulComponent` in Nocterm, you get the same lifecycle, the same `setState()`, the same rebuild semantics as Flutter's `StatefulWidget`. It's a proven architecture.
 
 ---
 
@@ -338,47 +311,83 @@ Both are declarative. Both compose naturally. The mental models are different bu
 
 ## What the Industry Is Doing
 
-I'm not the only one thinking about TUI performance.
+Ink powers major CLI tools: Google's Gemini CLI, GitHub Copilot CLI, and many others. With 34k+ GitHub stars and years of production use, it's proven technology.
 
-**OpenAI** is [migrating Codex CLI from Ink to Rust](https://github.com/openai/codex/discussions/1174). Their reasons: zero-dependency install, native performance, no garbage collector pauses.
+That said, some teams are exploring alternatives. OpenAI is [migrating Codex CLI to Rust](https://github.com/openai/codex/discussions/1174) for zero-dependency deployment. Anthropic uses Ink for Claude Code but [rewrote the renderer](https://newsletter.pragmaticengineer.com/p/how-claude-code-is-built) for more control over updates.
 
-**Anthropic** uses Ink for Claude Code but [rewrote the renderer](https://newsletter.pragmaticengineer.com/p/how-claude-code-is-built) for "fine-grained incremental updates." The default Ink rendering wasn't sufficient for their needs.
+Different teams optimize for different goals—there's no single right answer.
 
-**Google's Gemini CLI** uses Ink. **GitHub Copilot CLI** uses Ink. The framework has proven itself for production applications.
+---
 
-But there's a pattern here: the most demanding applications either move away from Ink or heavily customize it.
+## When to Choose Which
+
+**Choose Ink if:**
+- Your team already knows React and TypeScript
+- You need access to the npm ecosystem (thousands of packages)
+- You're building a long-running application where startup time doesn't matter
+- You want the most mature, battle-tested option (5+ years in production)
+
+**Choose Nocterm if:**
+- You're building CLI tools that run frequently (git hooks, build scripts, dev tools)
+- Deployment simplicity matters (single binary, no runtime)
+- Your team already knows Flutter/Dart
+- Memory footprint is a concern (embedded systems, resource-constrained environments)
+
+**Consider either for:**
+- Interactive dashboards
+- Form-based applications
+- Any TUI where both startup time and ecosystem don't dominate the decision
+
+---
+
+## Benchmark Limitations
+
+These tests measure specific scenarios on a single platform (macOS arm64, Apple M4 Pro). Results may differ on Linux/Windows, older hardware, or with different terminal emulators.
+
+Real-world performance depends on your specific use case—startup time matters more for short-lived CLI tools, while frame time matters more for long-running dashboards. Neither framework will be your bottleneck for typical TUI applications.
 
 ---
 
 ## The Summary
 
-| Metric | Ink | Nocterm |
-|--------|-----|---------|
-| First Frame (startup) | 12.0ms | 0.37ms |
-| Frame Time (max FPS test) | 115µs | 137µs |
-| Binary Size | 43.1 MB | 7.4 MB |
-| Memory (RSS) | 102.4 MB | 18.9 MB |
-| Runtime | Node.js | None |
-| Layout Engine | Yoga (C++) | Native Dart |
-| Component Model | React | Flutter |
+| Metric | Ink | Nocterm | Winner |
+|--------|-----|---------|--------|
+| First Frame (startup) | 12.0ms | 0.37ms | Nocterm (32x) |
+| Frame Time (max FPS) | 122µs | 135µs | Ink (13% faster) |
+| Binary Size (standalone) | 56 MB | 7.4 MB | Nocterm (7.5x) |
+| Memory (RSS) | 102.4 MB | 18.9 MB | Nocterm (5.4x) |
+| Ecosystem | npm (millions of packages) | pub.dev (smaller) | Ink |
+| Runtime | Node.js required | None | Nocterm |
+| Component Model | React | Flutter | Tie (preference) |
 
 ---
 
-## What I'm Building Next
+## Try It Yourself
 
-Nocterm is still young. I'm working on:
+All the benchmark code is in this repo. Run the tests yourself:
 
-- **Animation framework** - Implicit and explicit animations, just like Flutter
-- **Focus management** - Tab navigation, focus scopes
-- **Testing utilities** - `testNocterm()` with visual assertions
-- **More components** - Tables, trees, forms
+```bash
+# Clone and run Nocterm benchmarks
+cd benchmark/apps/01_static_layout/nocterm
+dart compile exe bin/app.dart -o app_exe
+./app_exe
 
-The TUI space is having a moment. Every major AI company is shipping terminal interfaces. Developer tools are getting richer. The terminal isn't going away - it's evolving.
+# Run Ink benchmarks
+cd benchmark/apps/01_static_layout/ink
+npm install && npm run build
+node dist/index.js
+```
 
-I think Flutter's patterns are the right foundation for this evolution. The numbers suggest I might be onto something.
+If you want to build something with Nocterm:
+
+```bash
+dart pub add nocterm
+```
+
+Check out the [`example/`](example/) folder for patterns: counters, forms, layouts, keyboard handling.
 
 ---
 
-*Benchmarks run on January 30, 2025. All test applications and raw data available in [`benchmark/`](benchmark/).*
+*Nocterm is still young (Ink has 5+ years on us). Contributions welcome.*
 
-*Nocterm is open source. Contributions welcome.*
+*Benchmarks ran on January 30, 2025. Environment: Apple M4 Pro, 48GB RAM, macOS arm64. All test applications and raw data available in [`benchmark/`](benchmark/).*
