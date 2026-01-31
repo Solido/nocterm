@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "description": "Frame time benchmark - measuring how long each frame takes from start to flush",
+    "methodology": {
+      "nocterm": "Measures total frame duration using FrameTiming callback (build + layout + paint + diff + terminal flush). Frame rate limiting disabled. Uses Stopwatch and SchedulerBinding.addFrameTimingCallback().",
+      "ink": "Measures time between consecutive render cycles using performance.now(). Uses setImmediate() to trigger maximum render rate."
+    },
+    "duration": "3 seconds per run",
+    "runs": 3,
+    "machine": "Apple M4 Pro, 48GB RAM"
+  },
+  "nocterm": {
+    "runs": [
+      {"fps": 7223, "mean_us": 136, "median_us": 132, "p95_us": 176},
+      {"fps": 7293, "mean_us": 134, "median_us": 129, "p95_us": 174},
+      {"fps": 6968, "mean_us": 140, "median_us": 133, "p95_us": 194}
+    ],
+    "average": {
+      "fps": 7161,
+      "mean_us": 137,
+      "median_us": 131,
+      "p95_us": 181
+    },
+    "breakdown": {
+      "build_us": 32,
+      "layout_us": 31,
+      "paint_us": 54,
+      "diff_and_flush_us": 20
+    },
+    "notes": "Frame timing breakdown: Build (32µs) + Layout (31µs) + Paint (54µs) + Diff/Flush (~20µs) = ~137µs total"
+  },
+  "ink": {
+    "runs": [
+      {"fps": 8896, "mean_us": 112, "median_us": 111, "p95_us": 162},
+      {"fps": 8300, "mean_us": 120, "median_us": 118, "p95_us": 174},
+      {"fps": 8770, "mean_us": 114, "median_us": 111, "p95_us": 167}
+    ],
+    "average": {
+      "fps": 8655,
+      "mean_us": 115,
+      "median_us": 113,
+      "p95_us": 168
+    },
+    "notes": "Measures frame-to-frame time including Node.js event loop. Ink uses React reconciler + Yoga layout."
+  },
+  "comparison": {
+    "fps": {
+      "nocterm": 7161,
+      "ink": 8655,
+      "notes": "Ink achieves ~21% more frames per second in this tight loop benchmark"
+    },
+    "frame_time_us": {
+      "nocterm_mean": 137,
+      "ink_mean": 115,
+      "notes": "Both frameworks render frames well under 16.67ms (60fps target = 16667µs)"
+    },
+    "interpretation": [
+      "Both frameworks can easily achieve 60+ FPS (target: 16.67ms per frame)",
+      "Nocterm: 137µs average = capable of ~7300 FPS = 122x faster than 60fps requirement",
+      "Ink: 115µs average = capable of ~8700 FPS = 145x faster than 60fps requirement",
+      "The difference is likely due to measurement methodology - Ink measures frame-to-frame time including event loop overhead",
+      "Nocterm measures actual frame processing time (build+layout+paint+diff+flush)",
+      "For practical purposes, both are more than fast enough for any TUI application"
+    ]
+  }
+}

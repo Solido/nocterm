@@ -1,0 +1,9 @@
+name: max_fps_benchmark
+description: Nocterm max FPS benchmark
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  nocterm:
+    path: ../../../..

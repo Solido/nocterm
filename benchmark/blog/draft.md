@@ -151,21 +151,31 @@ Nocterm's ~19 MB is the full Dart runtime + your app. For a TUI framework, that'
 
 ---
 
-### Interactive Frame Times
+### Frame Time (Maximum FPS Test)
 
-> **How I measured this**: I ran each interactive app in a headless terminal, sent programmatic keypresses, and measured the time between input and screen update. For the counter, I sent 20 rapid keypresses and captured the `state_change` event timing. For the dashboard, I let the animation run and measured frame interval consistency.
+> **How I measured this**: I disabled frame rate limiting and ran a tight loop triggering state changes as fast as possible for 3 seconds. For Nocterm, I used the built-in `FrameTiming` callback that measures the actual frame pipeline (build + layout + paint + diff + flush). For Ink, I measured time between consecutive renders using `performance.now()`. Both approaches measure "how fast can the framework render?"
 
-**Frame-to-frame performance (after startup):**
+**Maximum throughput (no frame rate limiting):**
 
-| Metric | Ink | Nocterm |
-|--------|-----|---------|
-| Counter (per keypress) | 1.09ms mean, 1.85ms p95 | Sub-millisecond |
-| Scrolling List (per scroll) | 2.18ms mean | Smooth, no lag |
-| Dashboard (animation interval) | 101.1ms (target: 100ms) | 100ms (target: 100ms) |
+| Framework | FPS | Mean Frame Time | Median | p95 |
+|-----------|-----|-----------------|--------|-----|
+| Ink | 8,655 | 115µs | 113µs | 168µs |
+| Nocterm | 7,161 | 137µs | 131µs | 181µs |
 
-Once both frameworks are running, they're both fast enough. The 60fps target is 16.67ms per frame - both frameworks come in well under that.
+**Nocterm frame breakdown:**
+- Build phase: 32µs
+- Layout phase: 31µs
+- Paint phase: 54µs
+- Diff + flush: ~20µs
 
-**The key difference is startup**. If your TUI runs once and stays open for hours, the 12ms startup tax is negligible. If it runs hundreds of times a day (think: git hooks, CLI tools, scripts), those milliseconds compound.
+Both frameworks render frames **100x faster than needed for 60fps** (16,667µs target). The difference here is academic - you'll never notice 115µs vs 137µs.
+
+What matters more:
+- **Startup time**: Nocterm wins by 32x (0.37ms vs 12ms)
+- **Memory footprint**: Nocterm uses 5.4x less RAM
+- **Deployment**: Single binary vs node_modules
+
+The key difference is startup. If your TUI runs once and stays open for hours, both frameworks are equally smooth. If it runs hundreds of times a day (git hooks, CLI tools, scripts), those startup milliseconds compound.
 
 ---
 
@@ -344,9 +354,8 @@ But there's a pattern here: the most demanding applications either move away fro
 
 | Metric | Ink | Nocterm |
 |--------|-----|---------|
-| First Frame (static) | 12.0ms | 0.37ms |
-| First Frame (dashboard) | 14.0ms | 0.47ms |
-| Interactive Frame | ~1-2ms | <1ms |
+| First Frame (startup) | 12.0ms | 0.37ms |
+| Frame Time (max FPS test) | 115µs | 137µs |
 | Binary Size | 43.1 MB | 7.4 MB |
 | Memory (RSS) | 102.4 MB | 18.9 MB |
 | Runtime | Node.js | None |
